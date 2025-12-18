@@ -6,9 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <style>
-        * {
-            box-sizing: border-box;
-        }
+        * { box-sizing: border-box; }
 
         body {
             margin: 0;
@@ -20,7 +18,7 @@
             justify-content: center;
             align-items: center;
             padding: 20px;
-            overflow: hidden;
+            overflow-x: hidden;
         }
 
         canvas {
@@ -43,68 +41,30 @@
         }
 
         @keyframes appear {
-            0% {
-                opacity: 0;
-                filter: blur(20px);
-                transform: scale(0.95);
-            }
-            100% {
-                opacity: 1;
-                filter: blur(0);
-                transform: scale(1);
-            }
+            0% { opacity: 0; filter: blur(20px); transform: scale(0.95); }
+            100% { opacity: 1; filter: blur(0); transform: scale(1); }
         }
 
-        h1 {
-            margin-top: 0;
-            font-size: 23px;
-            color: #ffffff;
-        }
+        h1 { margin-top: 0; font-size: 23px; color: #ffffff; }
 
-        p {
-            line-height: 1.55;
-            margin: 12px 0;
-            color: #d9d9d9;
-        }
+        p { line-height: 1.55; margin: 12px 0; color: #d9d9d9; }
 
         .city {
             font-style: italic;
             color: #bdbdbd;
-            transition: opacity 0.4s ease;
+            transition: opacity 0.1s linear;
         }
 
-        .links {
-            margin-top: 18px;
+        .divider {
+            border-top: 1px solid rgba(255,255,255,0.2);
+            margin: 15px 0;
         }
 
-        .links a {
-            display: inline-block;
-            margin-top: 6px;
-            color: #ffffff;
-            text-decoration: none;
-            font-weight: bold;
-        }
+        .links a { display: inline-block; margin-top: 6px; color: #ffffff; text-decoration: none; font-weight: bold; }
+        .links a:hover { text-decoration: underline; }
 
-        .links a:hover {
-            text-decoration: underline;
-        }
-
-        @media (hover: hover) and (pointer: fine) {
-            .card {
-                transition: transform 0.15s ease;
-            }
-        }
-
-        @media (max-width: 480px) {
-            h1 {
-                font-size: 20px;
-            }
-
-            .card {
-                padding: 22px;
-                border-radius: 18px;
-            }
-        }
+        @media (hover: hover) and (pointer: fine) { .card { transition: transform 0.15s ease; } }
+        @media (max-width: 480px) { h1 { font-size: 20px; } .card { padding: 22px; border-radius: 18px; } }
     </style>
 </head>
 <body>
@@ -113,28 +73,32 @@
 
 <div class="card" id="card">
     <h1>Я lie2srvv (ТГ: @lie2srvv)</h1>
-
     <p>В жизни зовут Александр.</p>
+
+    <div class="divider"></div>
 
     <p>
         Мне 16 лет, учусь в 11 классе.  
-        Живу в России, г. <span class="city" id="city">неизвестный</span>.  
+        Живу в России, г. <span class="city" id="city">ABCDEFG</span>.  
         Увлекаюсь программированием, люблю всякие логические задачи 🌸
     </p>
+
+    <div class="divider"></div>
 
     <div class="links">
         <p>🔗 Мои ссылки:</p>
         <a href="https://t.me/lie2survive" target="_blank">💬 ТГК: @lie2survive</a>
-
-        <p style="margin-top: 14px;">🤑 Денюжки:</p>
-        <p>💳 Если хотите прислать, то в лс тг :Р</p>
     </div>
+
+    <div class="divider"></div>
+
+    <p>🤑 Денюжки:</p>
+    <p>💳 Если хотите прислать, то в лс тг, буду благодарен :Р</p>
 </div>
 
 <script>
     const card = document.getElementById("card");
     const city = document.getElementById("city");
-
     const isDesktop = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
 
     if (isDesktop) {
@@ -143,62 +107,40 @@
             const y = (window.innerHeight / 2 - e.clientY) / 40;
             card.style.transform = `rotateX(${y}deg) rotateY(${x}deg)`;
         });
-
-        document.addEventListener("mouseleave", () => {
-            card.style.transform = "rotateX(0) rotateY(0)";
-        });
+        document.addEventListener("mouseleave", () => { card.style.transform = "rotateX(0) rotateY(0)"; });
     }
 
-    const cityVariants = [
-        "неизвестный",
-        "скрытый",
-        "засекреченный",
-        "потерянный",
-        "не обозначен",
-        "???"
-    ];
+    // Случайные 7 букв для города
+    function randomCity() {
+        let chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        let str = "";
+        for (let i=0; i<7; i++) { str += chars.charAt(Math.floor(Math.random()*chars.length)); }
+        return str;
+    }
 
-    let cityIndex = 0;
-    setInterval(() => {
-        city.style.opacity = 0;
-        setTimeout(() => {
-            cityIndex = (cityIndex + 1) % cityVariants.length;
-            city.textContent = cityVariants[cityIndex];
-            city.style.opacity = 1;
-        }, 400);
-    }, 2200);
+    setInterval(() => { city.textContent = randomCity(); }, 200); // меняется каждые 0.2 сек
 
+    // снег
     const canvas = document.getElementById("snow");
     const ctx = canvas.getContext("2d");
-
     let w, h;
-    function resize() {
-        w = canvas.width = window.innerWidth;
-        h = canvas.height = window.innerHeight;
-    }
+    function resize() { w = canvas.width = window.innerWidth; h = canvas.height = window.innerHeight; }
     resize();
     window.addEventListener("resize", resize);
 
-    const snowflakes = Array.from({ length: 120 }, () => ({
-        x: Math.random() * w,
-        y: Math.random() * h,
-        r: Math.random() * 2 + 0.5,
-        s: Math.random() * 0.6 + 0.2
+    const snowflakes = Array.from({length: 120}, () => ({
+        x: Math.random()*w, y: Math.random()*h, r: Math.random()*2+0.5, s: Math.random()*0.6+0.2
     }));
 
     function snow() {
-        ctx.clearRect(0, 0, w, h);
+        ctx.clearRect(0,0,w,h);
         ctx.fillStyle = "rgba(255,255,255,0.8)";
         snowflakes.forEach(f => {
             ctx.beginPath();
-            ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2);
+            ctx.arc(f.x, f.y, f.r, 0, Math.PI*2);
             ctx.fill();
-
             f.y += f.s;
-            if (f.y > h) {
-                f.y = -5;
-                f.x = Math.random() * w;
-            }
+            if (f.y > h) { f.y = -5; f.x = Math.random()*w; }
         });
         requestAnimationFrame(snow);
     }
