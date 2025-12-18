@@ -8,17 +8,18 @@
 *{box-sizing:border-box;}
 body{
   margin:0; min-height:100vh; background: radial-gradient(circle at top,#2a2a2a,#0f0f0f); 
-  color:#f2f2f2; font-family:Arial,sans-serif; display:flex; justify-content:center; align-items:center; padding:20px; overflow:hidden;
+  color:#f2f2f2; font-family:Arial,sans-serif; display:flex; justify-content:center; align-items:flex-start; padding:20px; overflow:hidden;
 }
 canvas#snow, canvas#draw{position:fixed; inset:0; z-index:0;}
 .card{
   position:relative; z-index:1; background: rgba(255,255,255,0.06); backdrop-filter: blur(14px);
   border-radius:22px; padding:28px; max-width:420px; width:100%; box-shadow:0 15px 40px rgba(0,0,0,0.6);
+  display:flex; flex-direction:column; transition: height 0.3s ease;
 }
 h1{margin-top:0; font-size:23px; color:#ffffff;}
 p{line-height:1.55; margin:6px 0; color:#d9d9d9;}
 .city{font-style:italic; color:#bdbdbd; display:inline-block; width:80px;}
-.divider{border-top:1px solid rgba(255,255,255,0.2); margin:15px 0;}
+.divider{border-top:1px solid rgba(255,255,255,0.2); margin:15px 0; opacity:0; transition:opacity 0.5s;}
 .links a{display:inline-block; margin-top:6px; color:#ffffff; text-decoration:none; font-weight:bold;}
 .links a:hover{text-decoration:underline;}
 #hint{opacity:0.5; font-size:12px; color:#fff; margin-top:8px; display:none;}
@@ -36,20 +37,16 @@ p{line-height:1.55; margin:6px 0; color:#d9d9d9;}
 <div class="card" id="card">
   <h1 id="line1"></h1>
   <p id="line2"></p>
-  <div class="divider"></div>
+  <div class="divider" id="div1"></div>
   <p id="line3"></p>
   <p id="line4"></p>
   <p id="line5"></p>
-  <div class="divider"></div>
-  <div class="links">
-    <p>Мои ссылки:</p>
-    <a href="https://t.me/lie2survive" target="_blank">💬 Телеграм Канал</a><br>
-    <a href="https://github.com/lie2srvv" target="_blank">🕹️ Github</a>
-  </div>
-  <div class="divider"></div>
+  <div class="divider" id="div2"></div>
   <p id="line6"></p>
   <p id="line7"></p>
   <p id="line8"></p>
+  <div class="divider" id="div3"></div>
+  <div class="links" id="linksBlock"></div>
   <div id="hint">Q - сбросить рисунок</div>
 </div>
 
@@ -76,7 +73,15 @@ citySpan.className="city";
 // --- Печатаем текст ---
 let iLine=0, iChar=0;
 function typeText(){
-  if(iLine>=textLines.length) return;
+  if(iLine>=textLines.length){
+    // После всех текстов показываем ссылки с эффектом
+    const linksBlock = document.getElementById("linksBlock");
+    linksBlock.innerHTML = `<p>Мои ссылки:</p>
+      <a href="https://t.me/lie2survive" target="_blank">💬 Телеграм Канал</a><br>
+      <a href="https://github.com/lie2srvv" target="_blank">🕹️ Github</a>`;
+    document.getElementById("div3").style.opacity = 1;
+    return;
+  }
   const el=document.getElementById(textLines[iLine].el);
   if(iChar<textLines[iLine].text.length){
     el.textContent+=textLines[iLine].text[iChar];
@@ -84,10 +89,12 @@ function typeText(){
     iChar++;
     setTimeout(typeText,60);
   } else {
-    // После того как напечатали строку с городом, вставляем span
+    // Показываем разделители плавно
+    if(textLines[iLine].el=="line2") document.getElementById("div1").style.opacity=1;
+    if(textLines[iLine].el=="line5") document.getElementById("div2").style.opacity=1;
+    // После строки с городом вставляем span
     if(textLines[iLine].el=="line4"){
       el.appendChild(citySpan);
-      // Старт генерации города
       setInterval(()=>{citySpan.textContent=randomCity();},50);
     }
     iLine++; iChar=0; setTimeout(typeText,200);
@@ -125,26 +132,40 @@ const dctx=drawCanvas.getContext("2d");
 function resizeDraw(){drawCanvas.width=window.innerWidth; drawCanvas.height=window.innerHeight;}
 resizeDraw(); window.addEventListener("resize",resizeDraw);
 let drawing=false;
+let lastX,lastY;
 
-drawCanvas.addEventListener("mousedown",()=>{
+drawCanvas.addEventListener("mousedown",(e)=>{
   drawing=true;
+  lastX=e.clientX; lastY=e.clientY;
   document.getElementById("clickSound").play();
-  // показываем подсказку только на ПК
   if(isDesktop) document.getElementById("hint").style.display="block";
 });
-drawCanvas.addEventListener("mouseup",()=>{drawing=false;});
+drawCanvas.addEventListener("mouseup",()=>{drawing=false; lastX=null; lastY=null;});
 drawCanvas.addEventListener("mousemove",e=>{
-  if(drawing){dctx.fillStyle="rgba(255,255,255,0.3)"; dctx.beginPath(); dctx.arc(e.clientX,e.clientY,6,0,Math.PI*2); dctx.fill();}
+  if(drawing){
+    if(lastX!=null && lastY!=null){
+      dctx.strokeStyle="rgba(255,255,255,0.3)";
+      dctx.lineWidth=6;
+      dctx.lineCap="round";
+      dctx.beginPath();
+      dctx.moveTo(lastX,lastY);
+      dctx.lineTo(e.clientX,e.clientY);
+      dctx.stroke();
+    }
+    lastX=e.clientX; lastY=e.clientY;
+  }
 });
 
-// Сброс Q (только для ПК)
-if(isDesktop){
-  document.addEventListener("keydown",e=>{
-    if(e.key.toLowerCase()=="q"){dctx.clearRect(0,0,drawCanvas.width,drawCanvas.height);}
-  });
-}
+// --- Сброс Q на любой раскладке
+document.addEventListener("keydown",e=>{
+  const key = e.key.toLowerCase();
+  if(isDesktop && (key==="q" || key==="й")){ // английская и русская
+    dctx.clearRect(0,0,drawCanvas.width,drawCanvas.height);
+    document.getElementById("hint").style.display="none";
+  }
+});
 
-// Эффект клика
+// --- Клик эффект ---
 drawCanvas.addEventListener("click",()=>{document.getElementById("clickSound").play();});
 </script>
 </body>
