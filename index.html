@@ -1,75 +1,94 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <title>lie2srvv</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8">
+<title>lie2srvv</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <style>
-        * { box-sizing: border-box; }
+<style>
+* { box-sizing: border-box; }
 
-        body {
-            margin: 0;
-            min-height: 100vh;
-            background: radial-gradient(circle at top, #2a2a2a, #0f0f0f);
-            color: #f2f2f2;
-            font-family: Arial, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
-            overflow-x: hidden;
-        }
+body {
+    margin: 0;
+    min-height: 100vh;
+    background: radial-gradient(circle at top, #2a2a2a, #0f0f0f);
+    color: #f2f2f2;
+    font-family: Arial, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    overflow-x: hidden;
+    cursor: none;
+}
 
-        canvas {
-            position: fixed;
-            inset: 0;
-            z-index: 0;
-        }
+canvas { position: fixed; inset: 0; z-index: 0; }
 
-        .card {
-            position: relative;
-            z-index: 1;
-            background: rgba(255, 255, 255, 0.06);
-            backdrop-filter: blur(14px);
-            border-radius: 22px;
-            padding: 28px;
-            max-width: 420px;
-            width: 100%;
-            box-shadow: 0 15px 40px rgba(0,0,0,0.6);
-            animation: appear 2.2s ease forwards;
-        }
+.card {
+    position: relative;
+    z-index: 1;
+    background: rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(14px);
+    border-radius: 22px;
+    padding: 28px;
+    max-width: 420px;
+    width: 100%;
+    box-shadow: 0 15px 40px rgba(0,0,0,0.6);
+    animation: appear 2.2s ease forwards;
+    transition: transform 0.15s ease;
+}
 
-        @keyframes appear {
-            0% { opacity: 0; filter: blur(20px); transform: scale(0.95); }
-            100% { opacity: 1; filter: blur(0); transform: scale(1); }
-        }
+@keyframes appear {
+    0% { opacity: 0; filter: blur(20px); transform: scale(0.95); }
+    100% { opacity: 1; filter: blur(0); transform: scale(1); }
+}
 
-        h1 { margin-top: 0; font-size: 23px; color: #ffffff; }
+h1 { margin-top: 0; font-size: 23px; color: #ffffff; }
+p { line-height: 1.55; margin: 12px 0; color: #d9d9d9; }
+.city { font-style: italic; color: #bdbdbd; transition: opacity 0.1s linear; }
+.divider { border-top: 1px solid rgba(255,255,255,0.2); margin: 15px 0; }
 
-        p { line-height: 1.55; margin: 12px 0; color: #d9d9d9; }
+.links a {
+    display: inline-block;
+    margin-top: 6px;
+    color: #ffffff;
+    text-decoration: none;
+    font-weight: bold;
+}
+.links a:hover { text-decoration: underline; }
 
-        .city {
-            font-style: italic;
-            color: #bdbdbd;
-            transition: opacity 0.1s linear;
-        }
+.cursor {
+    position: fixed;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    pointer-events: none;
+    background: rgba(255,255,255,0.15);
+    transform: translate(-50%, -50%);
+    transition: transform 0.05s ease;
+    z-index: 2;
+}
 
-        .divider {
-            border-top: 1px solid rgba(255,255,255,0.2);
-            margin: 15px 0;
-        }
+.click {
+    animation: clickAnim 0.4s ease;
+}
 
-        .links a { display: inline-block; margin-top: 6px; color: #ffffff; text-decoration: none; font-weight: bold; }
-        .links a:hover { text-decoration: underline; }
+@keyframes clickAnim {
+    0% { transform: scale(1); opacity: 0.6; }
+    100% { transform: scale(2.5); opacity: 0; }
+}
 
-        @media (hover: hover) and (pointer: fine) { .card { transition: transform 0.15s ease; } }
-        @media (max-width: 480px) { h1 { font-size: 20px; } .card { padding: 22px; border-radius: 18px; } }
-    </style>
+@media (max-width: 480px) {
+    h1 { font-size: 20px; }
+    .card { padding: 22px; border-radius: 18px; }
+    body { cursor: default; }
+}
+</style>
 </head>
 <body>
 
 <canvas id="snow"></canvas>
+<div class="cursor" id="cursor"></div>
 
 <div class="card" id="card">
     <h1>Я lie2srvv (ТГ: @lie2srvv)</h1>
@@ -79,7 +98,7 @@
 
     <p>
         Мне 16 лет, учусь в 11 классе.  
-        Живу в России, г. <span class="city" id="city">ABCDEFG</span>.  
+        Живу в России, г. <span class="city" id="city">???????</span>.  
         Увлекаюсь программированием, люблю всякие логические задачи 🌸
     </p>
 
@@ -87,7 +106,8 @@
 
     <div class="links">
         <p>🔗 Мои ссылки:</p>
-        <a href="https://t.me/lie2survive" target="_blank">💬 ТГК: @lie2survive</a>
+        <a href="https://t.me/lie2survive" target="_blank">💬 Телеграм Канал</a><br>
+        <a href="https://github.com/lie2srvv" target="_blank">🐱 Github</a>
     </div>
 
     <div class="divider"></div>
@@ -97,54 +117,59 @@
 </div>
 
 <script>
-    const card = document.getElementById("card");
-    const city = document.getElementById("city");
-    const isDesktop = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+const card = document.getElementById("card");
+const city = document.getElementById("city");
+const cursor = document.getElementById("cursor");
+const isDesktop = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
 
-    if (isDesktop) {
-        document.addEventListener("mousemove", (e) => {
-            const x = (window.innerWidth / 2 - e.clientX) / 40;
-            const y = (window.innerHeight / 2 - e.clientY) / 40;
-            card.style.transform = `rotateX(${y}deg) rotateY(${x}deg)`;
-        });
-        document.addEventListener("mouseleave", () => { card.style.transform = "rotateX(0) rotateY(0)"; });
-    }
+// ПК: курсор и наклон карточки
+if(isDesktop){
+    document.addEventListener("mousemove", e => {
+        const x = (window.innerWidth/2 - e.clientX)/40;
+        const y = (window.innerHeight/2 - e.clientY)/40;
+        card.style.transform = `rotateX(${y}deg) rotateY(${x}deg)`;
+        cursor.style.left = e.clientX + "px";
+        cursor.style.top = e.clientY + "px";
+    });
+    document.addEventListener("mouseleave", () => { card.style.transform = "rotateX(0) rotateY(0)"; });
+    document.addEventListener("click", () => {
+        cursor.classList.remove("click");
+        void cursor.offsetWidth;
+        cursor.classList.add("click");
+    });
+}
 
-    // Случайные 7 букв для города
-    function randomCity() {
-        let chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-        let str = "";
-        for (let i=0; i<7; i++) { str += chars.charAt(Math.floor(Math.random()*chars.length)); }
-        return str;
-    }
+// Город: быстрый шум (буквы, цифры, символы)
+function randomCity(){
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()[]{}<>?/|\\~";
+    let str = "";
+    for(let i=0;i<7;i++){ str += chars.charAt(Math.floor(Math.random()*chars.length)); }
+    return str;
+}
+setInterval(()=>{ city.textContent = randomCity(); }, 50);
 
-    setInterval(() => { city.textContent = randomCity(); }, 200); // меняется каждые 0.2 сек
+// снег
+const canvas = document.getElementById("snow");
+const ctx = canvas.getContext("2d");
+let w,h;
+function resize(){ w=canvas.width=window.innerWidth; h=canvas.height=window.innerHeight; }
+resize(); window.addEventListener("resize",resize);
 
-    // снег
-    const canvas = document.getElementById("snow");
-    const ctx = canvas.getContext("2d");
-    let w, h;
-    function resize() { w = canvas.width = window.innerWidth; h = canvas.height = window.innerHeight; }
-    resize();
-    window.addEventListener("resize", resize);
+const snowflakes = Array.from({length:120},()=>({x:Math.random()*w,y:Math.random()*h,r:Math.random()*2+0.5,s:Math.random()*0.6+0.2}));
 
-    const snowflakes = Array.from({length: 120}, () => ({
-        x: Math.random()*w, y: Math.random()*h, r: Math.random()*2+0.5, s: Math.random()*0.6+0.2
-    }));
-
-    function snow() {
-        ctx.clearRect(0,0,w,h);
-        ctx.fillStyle = "rgba(255,255,255,0.8)";
-        snowflakes.forEach(f => {
-            ctx.beginPath();
-            ctx.arc(f.x, f.y, f.r, 0, Math.PI*2);
-            ctx.fill();
-            f.y += f.s;
-            if (f.y > h) { f.y = -5; f.x = Math.random()*w; }
-        });
-        requestAnimationFrame(snow);
-    }
-    snow();
+function snow(){
+    ctx.clearRect(0,0,w,h);
+    ctx.fillStyle="rgba(255,255,255,0.8)";
+    snowflakes.forEach(f=>{
+        ctx.beginPath();
+        ctx.arc(f.x,f.y,f.r,0,Math.PI*2);
+        ctx.fill();
+        f.y+=f.s;
+        if(f.y>h){ f.y=-5; f.x=Math.random()*w; }
+    });
+    requestAnimationFrame(snow);
+}
+snow();
 </script>
 
 </body>
