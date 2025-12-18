@@ -23,7 +23,7 @@ p{line-height:1.55; margin:6px 0; color:#d9d9d9; text-align:left; word-break:kee
 .divider{border-top:1px solid rgba(255,255,255,0.2); margin:15px 0; opacity:0; transition:opacity 0.5s;}
 .links a{display:inline-block; margin-top:6px; color:#ffffff; text-decoration:none; font-weight:bold;}
 .links a:hover{text-decoration:underline;}
-#hint{opacity:0.5; font-size:12px; color:#fff; margin-top:8px; display:none; flex-wrap:wrap;}
+#hint{opacity:0.5; font-size:12px; color:#fff; margin-top:8px; display:none; flex-direction:column;}
 #colorDot{display:inline-block; width:12px; height:12px; border-radius:50%; margin-left:6px; vertical-align:middle;}
 @media(max-width:480px){.card{padding:16px 20px; border-radius:18px;} h1{font-size:20px;}}
 </style>
@@ -40,81 +40,91 @@ p{line-height:1.55; margin:6px 0; color:#d9d9d9; text-align:left; word-break:kee
   <h1 id="line1"></h1>
   <p id="line2"></p>
   <div class="divider" id="div1"></div>
+
   <p id="line3"></p>
+  <div class="divider" id="div2"></div>
+
   <p id="line4"></p>
   <p id="line5"></p>
-  <div class="divider" id="div2"></div>
-  <div class="links" id="linksBlock"></div>
   <div class="divider" id="div3"></div>
+
+  <div class="links" id="linksBlock"></div>
+  <div class="divider" id="div4"></div>
+
   <p id="line6"></p>
   <p id="line7"></p>
-  <p id="line8"></p>
-  <div id="hint">W - смена цвета <span id="colorDot"></span> | E - ластик | Q - сбросить рисунок</div>
+
+  <div id="hint">
+    <span>W - смена цвета <span id="colorDot"></span></span>
+    <span>Q - сбросить рисунка</span>
+  </div>
 </div>
 
 <script>
-// --- Настройки ---
 const isDesktop = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
 
 // --- Текст ---
 const textLines = [
   {el:"line1", text:"Я lie2srvv (ТГ: @lie2srvv)"},
   {el:"line2", text:"В жизни зовут Александр."},
+  {divider:"div1"},
   {el:"line3", text:"Мне 16 лет, учусь в 11 классе."},
+  {divider:"div2"},
   {el:"line4", text:"Живу в России, г. "},
   {el:"line5", text:"Увлекаюсь программированием, люблю всякие логические задачи 🌸"},
+  {divider:"div3"},
+  {links:true},
+  {divider:"div4"},
   {el:"line6", text:"💸 Финансовая поддержка:"},
-  {el:"line7", text:"🏦 СБП в лс ТГ"},
-  {el:"line8", text:""}
+  {el:"line7", text:"🏦 СБП в лс ТГ"}
 ];
 
-// --- Город ---
-const cities = ["Москва","Казань","Сочи","Тверь","Воронеж","Ярослав","Тула"];
+// --- Город случайный (только русские буквы, очень быстро) ---
+const letters="абвгдеёжзийклмнопрстуфхцчшщъыьэюя";
 const citySpan = document.createElement("span"); 
 citySpan.className="city"; 
 
-// --- Печать текста ---
-let iLine=0, iChar=0;
-function typeText(){
-  if(iLine>=textLines.length){
-    return;
-  }
-  const el=document.getElementById(textLines[iLine].el);
-  if(iChar<textLines[iLine].text.length){
-    el.textContent+=textLines[iLine].text[iChar];
-    document.getElementById("typeSound").play();
-    iChar++;
-    setTimeout(typeText,60);
-  } else {
-    if(textLines[iLine].el=="line2") document.getElementById("div1").style.opacity=1;
-    if(textLines[iLine].el=="line5") document.getElementById("div2").style.opacity=1;
-    if(textLines[iLine].el=="line4"){
-      el.appendChild(citySpan);
-      setInterval(()=>{citySpan.textContent=randomCity();},250);
-    }
-    iLine++; iChar=0;
-    if(iLine==5){ // после line5 печатаем ссылки
-      const linksBlock = document.getElementById("linksBlock");
-      linksBlock.innerHTML = `<p>Мои ссылки:</p>
-        <a href="https://t.me/lie2survive" target="_blank">💬 Телеграм Канал</a><br>
-        <a href="https://github.com/lie2srvv" target="_blank">🕹️ Github</a>`;
-      document.getElementById("div3").style.opacity=1;
-    }
-    setTimeout(typeText,200);
-  }
-}
-typeText();
-
-// --- Генерация города ---
 function randomCity(){
-  if(Math.random()<0.3) return cities[Math.floor(Math.random()*cities.length)];
-  let letters="абвгдеёжзийклмнопрстуфхцчшщъыьэюя";
   let city = letters.charAt(Math.floor(Math.random()*letters.length)).toUpperCase();
   for(let i=1;i<6;i++){
     city += letters.charAt(Math.floor(Math.random()*letters.length));
   }
   return city;
 }
+
+// --- Печать текста ---
+let iLine=0, iChar=0;
+function typeText(){
+  if(iLine>=textLines.length) return;
+  const item = textLines[iLine];
+  if(item.el){
+    const el=document.getElementById(item.el);
+    if(iChar<item.text.length){
+      el.textContent+=item.text[iChar];
+      document.getElementById("typeSound").play();
+      iChar++;
+      setTimeout(typeText,60);
+    } else {
+      if(item.el=="line2" || item.el=="line3" || item.el=="line5") document.getElementById("div"+(iLine)).style.opacity=1;
+      if(item.el=="line4"){
+        el.appendChild(citySpan);
+        setInterval(()=>{citySpan.textContent=randomCity();},50);
+      }
+      iLine++; iChar=0;
+      setTimeout(typeText,200);
+    }
+  } else if(item.divider){
+    document.getElementById(item.divider).style.opacity=1;
+    iLine++; setTimeout(typeText,200);
+  } else if(item.links){
+    const linksBlock = document.getElementById("linksBlock");
+    linksBlock.innerHTML = `<p>Мои ссылки:</p>
+      <a href="https://t.me/lie2survive" target="_blank">💬 Телеграм Канал</a><br>
+      <a href="https://github.com/lie2srvv" target="_blank">🕹️ Github</a>`;
+    iLine++; setTimeout(typeText,200);
+  }
+}
+typeText();
 
 // --- Снег ---
 const canvas = document.getElementById("snow");
@@ -143,15 +153,14 @@ const dctx=drawCanvas.getContext("2d");
 function resizeDraw(){drawCanvas.width=window.innerWidth; drawCanvas.height=window.innerHeight;}
 resizeDraw(); window.addEventListener("resize",resizeDraw);
 let drawing=false, lastX, lastY;
+
 let colors = ["#FF0000","#FF7F00","#FFFF00","#00FF00","#00FFFF","#0000FF","#8B00FF","rainbow","#FFFFFF"];
 let currentColor = 0;
 let rainbowHue=0;
-
 const colorDot = document.getElementById("colorDot");
-
 function updateColorDot(){
   if(colors[currentColor]==="rainbow"){
-    colorDot.style.background = `hsl(${rainbowHue}, 100%, 50%)`;
+    colorDot.style.background = `hsl(${rainbowHue},100%,50%)`;
   } else {
     colorDot.style.background = colors[currentColor];
   }
@@ -171,6 +180,7 @@ drawCanvas.addEventListener("mousemove",e=>{
     lastX=e.clientX; lastY=e.clientY;
   }
 });
+
 document.addEventListener("keydown",e=>{
   const key = e.key.toLowerCase();
   if(isDesktop && (key==="q" || key==="й")){
@@ -181,13 +191,9 @@ document.addEventListener("keydown",e=>{
     currentColor = (currentColor+1)%colors.length;
     updateColorDot();
   }
-  if(isDesktop && (key==="e" || key==="у")){
-    currentColor = colors.indexOf("#FFFFFF"); 
-    updateColorDot();
-  }
 });
 
-// --- Радужная анимация точки ---
+// --- Радужная точка ---
 function animateRainbow(){
   if(colors[currentColor]==="rainbow"){
     rainbowHue = (rainbowHue+1)%360;
