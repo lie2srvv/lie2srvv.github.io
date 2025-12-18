@@ -21,7 +21,7 @@ p{line-height:1.55; margin:6px 0; color:#d9d9d9;}
 .divider{border-top:1px solid rgba(255,255,255,0.2); margin:15px 0;}
 .links a{display:inline-block; margin-top:6px; color:#ffffff; text-decoration:none; font-weight:bold;}
 .links a:hover{text-decoration:underline;}
-#hint{opacity:0.5; font-size:12px; color:#fff; margin-top:8px;}
+#hint{opacity:0.5; font-size:12px; color:#fff; margin-top:8px; display:none;}
 @media(max-width:480px){.card{padding:22px; border-radius:18px;} h1{font-size:20px;}}
 </style>
 </head>
@@ -54,6 +54,9 @@ p{line-height:1.55; margin:6px 0; color:#d9d9d9;}
 </div>
 
 <script>
+// --- Определяем, ПК или телефон ---
+const isDesktop = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+
 // --- Текст для печати ---
 const textLines = [
   {el:"line1", text:"Я lie2srvv (ТГ: @lie2srvv)"},
@@ -66,12 +69,9 @@ const textLines = [
   {el:"line8", text:""}
 ];
 
-// --- Город шум ---
+// --- Элемент для города ---
 const citySpan = document.createElement("span"); 
 citySpan.className="city"; 
-document.getElementById("line4").appendChild(citySpan);
-function randomCity(){const c="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()[]{}<>?/|\\~"; let s=""; for(let i=0;i<7;i++){s+=c.charAt(Math.floor(Math.random()*c.length));} return s;}
-setInterval(()=>{citySpan.textContent=randomCity();},50);
 
 // --- Печатаем текст ---
 let iLine=0, iChar=0;
@@ -83,9 +83,20 @@ function typeText(){
     document.getElementById("typeSound").play();
     iChar++;
     setTimeout(typeText,60);
-  } else { iLine++; iChar=0; setTimeout(typeText,200); }
+  } else {
+    // После того как напечатали строку с городом, вставляем span
+    if(textLines[iLine].el=="line4"){
+      el.appendChild(citySpan);
+      // Старт генерации города
+      setInterval(()=>{citySpan.textContent=randomCity();},50);
+    }
+    iLine++; iChar=0; setTimeout(typeText,200);
+  }
 }
 typeText();
+
+// --- Генерация шума города ---
+function randomCity(){const c="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()[]{}<>?/|\\~"; let s=""; for(let i=0;i<7;i++){s+=c.charAt(Math.floor(Math.random()*c.length));} return s;}
 
 // --- Снег ---
 const canvas = document.getElementById("snow");
@@ -114,13 +125,26 @@ const dctx=drawCanvas.getContext("2d");
 function resizeDraw(){drawCanvas.width=window.innerWidth; drawCanvas.height=window.innerHeight;}
 resizeDraw(); window.addEventListener("resize",resizeDraw);
 let drawing=false;
-drawCanvas.addEventListener("mousedown",()=>{drawing=true; document.getElementById("clickSound").play();});
+
+drawCanvas.addEventListener("mousedown",()=>{
+  drawing=true;
+  document.getElementById("clickSound").play();
+  // показываем подсказку только на ПК
+  if(isDesktop) document.getElementById("hint").style.display="block";
+});
 drawCanvas.addEventListener("mouseup",()=>{drawing=false;});
 drawCanvas.addEventListener("mousemove",e=>{
   if(drawing){dctx.fillStyle="rgba(255,255,255,0.3)"; dctx.beginPath(); dctx.arc(e.clientX,e.clientY,6,0,Math.PI*2); dctx.fill();}
 });
-// Сброс Q
-document.addEventListener("keydown",e=>{if(e.key.toLowerCase()=="q"){dctx.clearRect(0,0,drawCanvas.width,drawCanvas.height);}});
+
+// Сброс Q (только для ПК)
+if(isDesktop){
+  document.addEventListener("keydown",e=>{
+    if(e.key.toLowerCase()=="q"){dctx.clearRect(0,0,drawCanvas.width,drawCanvas.height);}
+  });
+}
+
+// Эффект клика
 drawCanvas.addEventListener("click",()=>{document.getElementById("clickSound").play();});
 </script>
 </body>
