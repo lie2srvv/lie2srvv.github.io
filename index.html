@@ -44,8 +44,8 @@ canvas { position: fixed; inset: 0; z-index: 0; }
 }
 
 h1 { margin-top: 0; font-size: 23px; color: #ffffff; }
-p { line-height: 1.55; margin: 12px 0; color: #d9d9d9; }
-.city { font-style: italic; color: #bdbdbd; transition: opacity 0.1s linear; }
+p { line-height: 1.55; margin: 6px 0; color: #d9d9d9; }
+.city { font-style: italic; color: #bdbdbd; display: inline-block; width: 80px; }
 .divider { border-top: 1px solid rgba(255,255,255,0.2); margin: 15px 0; }
 
 .links a {
@@ -67,6 +67,8 @@ p { line-height: 1.55; margin: 12px 0; color: #d9d9d9; }
     transform: translate(-50%, -50%);
     transition: transform 0.05s ease;
     z-index: 2;
+    left: -100px;
+    top: -100px;
 }
 
 .click {
@@ -81,7 +83,6 @@ p { line-height: 1.55; margin: 12px 0; color: #d9d9d9; }
 @media (max-width: 480px) {
     h1 { font-size: 20px; }
     .card { padding: 22px; border-radius: 18px; }
-    body { cursor: default; }
 }
 </style>
 </head>
@@ -96,24 +97,22 @@ p { line-height: 1.55; margin: 12px 0; color: #d9d9d9; }
 
     <div class="divider"></div>
 
-    <p>
-        Мне 16 лет, учусь в 11 классе.  
-        Живу в России, г. <span class="city" id="city">???????</span>.  
-        Увлекаюсь программированием, люблю всякие логические задачи 🌸
-    </p>
+    <p>Мне 16 лет, учусь в 11 классе.</p>
+    <p>Живу в России, г. <span class="city" id="city">???????</span>.</p>
+    <p>Увлекаюсь программированием, люблю всякие логические задачи 🌸</p>
 
     <div class="divider"></div>
 
     <div class="links">
-        <p>🔗 Мои ссылки:</p>
+        <p>Мои ссылки:</p>
         <a href="https://t.me/lie2survive" target="_blank">💬 Телеграм Канал</a><br>
-        <a href="https://github.com/lie2srvv" target="_blank">🐱 Github</a>
+        <a href="https://github.com/lie2srvv" target="_blank">🕹️ Github</a>
     </div>
 
     <div class="divider"></div>
 
-    <p>🤑 Денюжки:</p>
-    <p>💳 Если хотите прислать, то в лс тг, буду благодарен :Р</p>
+    <p>Денюжки:</p>
+    <p>Если хотите прислать, то в лс тг, буду благодарен :Р</p>
 </div>
 
 <script>
