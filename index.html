@@ -8,22 +8,22 @@
 *{box-sizing:border-box;}
 body{
   margin:0; min-height:100vh; background: radial-gradient(circle at top,#2a2a2a,#0f0f0f); 
-  color:#f2f2f2; font-family:Arial,sans-serif; display:flex; justify-content:center; align-items:flex-start; padding:20px; overflow:hidden;
+  color:#f2f2f2; font-family:Arial,sans-serif; display:flex; justify-content:center; align-items:center; overflow:hidden;
 }
 canvas#snow, canvas#draw{position:fixed; inset:0; z-index:0;}
 .card{
   position:relative; z-index:1; background: rgba(255,255,255,0.06); backdrop-filter: blur(14px);
-  border-radius:22px; padding:28px; max-width:420px; width:100%; box-shadow:0 15px 40px rgba(0,0,0,0.6);
-  display:flex; flex-direction:column; transition: height 0.3s ease;
+  border-radius:22px; padding:20px 28px; max-width:420px; width:100%; box-shadow:0 15px 40px rgba(0,0,0,0.6);
+  display:flex; flex-direction:column; align-items:center; justify-content:flex-start;
 }
 h1{margin-top:0; font-size:23px; color:#ffffff;}
-p{line-height:1.55; margin:6px 0; color:#d9d9d9;}
+p{line-height:1.55; margin:6px 0; color:#d9d9d9; text-align:center;}
 .city{font-style:italic; color:#bdbdbd; display:inline-block; width:80px;}
 .divider{border-top:1px solid rgba(255,255,255,0.2); margin:15px 0; opacity:0; transition:opacity 0.5s;}
 .links a{display:inline-block; margin-top:6px; color:#ffffff; text-decoration:none; font-weight:bold;}
 .links a:hover{text-decoration:underline;}
 #hint{opacity:0.5; font-size:12px; color:#fff; margin-top:8px; display:none;}
-@media(max-width:480px){.card{padding:22px; border-radius:18px;} h1{font-size:20px;}}
+@media(max-width:480px){.card{padding:16px 20px; border-radius:18px;} h1{font-size:20px;}}
 </style>
 </head>
 <body>
@@ -42,11 +42,11 @@ p{line-height:1.55; margin:6px 0; color:#d9d9d9;}
   <p id="line4"></p>
   <p id="line5"></p>
   <div class="divider" id="div2"></div>
+  <div class="links" id="linksBlock"></div>
+  <div class="divider" id="div3"></div>
   <p id="line6"></p>
   <p id="line7"></p>
   <p id="line8"></p>
-  <div class="divider" id="div3"></div>
-  <div class="links" id="linksBlock"></div>
   <div id="hint">Q - сбросить рисунок</div>
 </div>
 
@@ -74,12 +74,6 @@ citySpan.className="city";
 let iLine=0, iChar=0;
 function typeText(){
   if(iLine>=textLines.length){
-    // После всех текстов показываем ссылки с эффектом
-    const linksBlock = document.getElementById("linksBlock");
-    linksBlock.innerHTML = `<p>Мои ссылки:</p>
-      <a href="https://t.me/lie2survive" target="_blank">💬 Телеграм Канал</a><br>
-      <a href="https://github.com/lie2srvv" target="_blank">🕹️ Github</a>`;
-    document.getElementById("div3").style.opacity = 1;
     return;
   }
   const el=document.getElementById(textLines[iLine].el);
@@ -89,7 +83,7 @@ function typeText(){
     iChar++;
     setTimeout(typeText,60);
   } else {
-    // Показываем разделители плавно
+    // Появление разделителей
     if(textLines[iLine].el=="line2") document.getElementById("div1").style.opacity=1;
     if(textLines[iLine].el=="line5") document.getElementById("div2").style.opacity=1;
     // После строки с городом вставляем span
@@ -97,7 +91,18 @@ function typeText(){
       el.appendChild(citySpan);
       setInterval(()=>{citySpan.textContent=randomCity();},50);
     }
-    iLine++; iChar=0; setTimeout(typeText,200);
+    iLine++; iChar=0;
+
+    // После второго divider печатаем ссылки
+    if(iLine==5){ // после line5
+      const linksBlock = document.getElementById("linksBlock");
+      linksBlock.innerHTML = `<p>Мои ссылки:</p>
+        <a href="https://t.me/lie2survive" target="_blank">💬 Телеграм Канал</a><br>
+        <a href="https://github.com/lie2srvv" target="_blank">🕹️ Github</a>`;
+      document.getElementById("div3").style.opacity=1;
+    }
+
+    setTimeout(typeText,200);
   }
 }
 typeText();
@@ -156,7 +161,7 @@ drawCanvas.addEventListener("mousemove",e=>{
   }
 });
 
-// --- Сброс Q на любой раскладке
+// --- Сброс Q на любой раскладке ---
 document.addEventListener("keydown",e=>{
   const key = e.key.toLowerCase();
   if(isDesktop && (key==="q" || key==="й")){ // английская и русская
