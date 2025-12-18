@@ -4,172 +4,124 @@
 <meta charset="UTF-8">
 <title>lie2srvv</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
 <style>
-* { box-sizing: border-box; }
-
-body {
-    margin: 0;
-    min-height: 100vh;
-    background: radial-gradient(circle at top, #2a2a2a, #0f0f0f);
-    color: #f2f2f2;
-    font-family: Arial, sans-serif;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 20px;
-    overflow-x: hidden;
-    cursor: none;
+*{box-sizing:border-box;}
+body{
+  margin:0; min-height:100vh; background: radial-gradient(circle at top,#2a2a2a,#0f0f0f); 
+  color:#f2f2f2; font-family:Arial,sans-serif; display:flex; justify-content:center; align-items:center; padding:20px; overflow:hidden;
 }
-
-canvas { position: fixed; inset: 0; z-index: 0; }
-
-.card {
-    position: relative;
-    z-index: 1;
-    background: rgba(255, 255, 255, 0.06);
-    backdrop-filter: blur(14px);
-    border-radius: 22px;
-    padding: 28px;
-    max-width: 420px;
-    width: 100%;
-    box-shadow: 0 15px 40px rgba(0,0,0,0.6);
-    animation: appear 2.2s ease forwards;
-    transition: transform 0.15s ease;
+canvas#snow, canvas#draw{position:fixed; inset:0; z-index:0;}
+.card{
+  position:relative; z-index:1; background: rgba(255,255,255,0.06); backdrop-filter: blur(14px);
+  border-radius:22px; padding:28px; max-width:420px; width:100%; box-shadow:0 15px 40px rgba(0,0,0,0.6);
 }
-
-@keyframes appear {
-    0% { opacity: 0; filter: blur(20px); transform: scale(0.95); }
-    100% { opacity: 1; filter: blur(0); transform: scale(1); }
-}
-
-h1 { margin-top: 0; font-size: 23px; color: #ffffff; }
-p { line-height: 1.55; margin: 6px 0; color: #d9d9d9; }
-.city { font-style: italic; color: #bdbdbd; display: inline-block; width: 80px; }
-.divider { border-top: 1px solid rgba(255,255,255,0.2); margin: 15px 0; }
-
-.links a {
-    display: inline-block;
-    margin-top: 6px;
-    color: #ffffff;
-    text-decoration: none;
-    font-weight: bold;
-}
-.links a:hover { text-decoration: underline; }
-
-.cursor {
-    position: fixed;
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    pointer-events: none;
-    background: rgba(255,255,255,0.15);
-    transform: translate(-50%, -50%);
-    transition: transform 0.05s ease;
-    z-index: 2;
-    left: -100px;
-    top: -100px;
-}
-
-.click {
-    animation: clickAnim 0.4s ease;
-}
-
-@keyframes clickAnim {
-    0% { transform: scale(1); opacity: 0.6; }
-    100% { transform: scale(2.5); opacity: 0; }
-}
-
-@media (max-width: 480px) {
-    h1 { font-size: 20px; }
-    .card { padding: 22px; border-radius: 18px; }
-}
+h1{margin-top:0; font-size:23px; color:#ffffff;}
+p{line-height:1.55; margin:6px 0; color:#d9d9d9;}
+.city{font-style:italic; color:#bdbdbd; display:inline-block; width:80px;}
+.divider{border-top:1px solid rgba(255,255,255,0.2); margin:15px 0;}
+.links a{display:inline-block; margin-top:6px; color:#ffffff; text-decoration:none; font-weight:bold;}
+.links a:hover{text-decoration:underline;}
+#hint{opacity:0.5; font-size:12px; color:#fff; margin-top:8px;}
+@media(max-width:480px){.card{padding:22px; border-radius:18px;} h1{font-size:20px;}}
 </style>
 </head>
 <body>
+<audio id="bgMusic" src="https://cdn.pixabay.com/download/audio/2022/08/25/audio_91f5b6c0d2.mp3?filename=calm-background-ambient-10848.mp3" loop autoplay></audio>
+<audio id="typeSound" src="https://www.soundjay.com/keyboard/keyboard-1.mp3"></audio>
+<audio id="clickSound" src="https://www.soundjay.com/button/button-16.mp3"></audio>
 
 <canvas id="snow"></canvas>
-<div class="cursor" id="cursor"></div>
+<canvas id="draw"></canvas>
 
 <div class="card" id="card">
-    <h1>Я lie2srvv (ТГ: @lie2srvv)</h1>
-    <p>В жизни зовут Александр.</p>
-
-    <div class="divider"></div>
-
-    <p>Мне 16 лет, учусь в 11 классе.</p>
-    <p>Живу в России, г. <span class="city" id="city">???????</span>.</p>
-    <p>Увлекаюсь программированием, люблю всякие логические задачи 🌸</p>
-
-    <div class="divider"></div>
-
-    <div class="links">
-        <p>Мои ссылки:</p>
-        <a href="https://t.me/lie2survive" target="_blank">💬 Телеграм Канал</a><br>
-        <a href="https://github.com/lie2srvv" target="_blank">🕹️ Github</a>
-    </div>
-
-    <div class="divider"></div>
-
-    <p>🤑 Денюжки:</p>
-    <p>💳 Если хотите прислать, то в лс тг, буду благодарен :Р</p>
+  <h1 id="line1"></h1>
+  <p id="line2"></p>
+  <div class="divider"></div>
+  <p id="line3"></p>
+  <p id="line4"></p>
+  <p id="line5"></p>
+  <div class="divider"></div>
+  <div class="links">
+    <p>Мои ссылки:</p>
+    <a href="https://t.me/lie2survive" target="_blank">💬 Телеграм Канал</a><br>
+    <a href="https://github.com/lie2srvv" target="_blank">🕹️ Github</a>
+  </div>
+  <div class="divider"></div>
+  <p id="line6"></p>
+  <p id="line7"></p>
+  <p id="line8"></p>
+  <div id="hint">Q - сбросить рисунок</div>
 </div>
 
 <script>
-const card = document.getElementById("card");
-const city = document.getElementById("city");
-const cursor = document.getElementById("cursor");
-const isDesktop = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+// --- Текст для печати ---
+const textLines = [
+  {el:"line1", text:"Я lie2srvv (ТГ: @lie2srvv)"},
+  {el:"line2", text:"В жизни зовут Александр."},
+  {el:"line3", text:"Мне 16 лет, учусь в 11 классе."},
+  {el:"line4", text:"Живу в России, г. "},
+  {el:"line5", text:"Увлекаюсь программированием, люблю всякие логические задачи 🌸"},
+  {el:"line6", text:"💸 Финансовая поддержка:"},
+  {el:"line7", text:"🏦 СБП в лс ТГ"},
+  {el:"line8", text:""}
+];
 
-// ПК: курсор и наклон карточки
-if(isDesktop){
-    document.addEventListener("mousemove", e => {
-        const x = (window.innerWidth/2 - e.clientX)/40;
-        const y = (window.innerHeight/2 - e.clientY)/40;
-        card.style.transform = `rotateX(${y}deg) rotateY(${x}deg)`;
-        cursor.style.left = e.clientX + "px";
-        cursor.style.top = e.clientY + "px";
-    });
-    document.addEventListener("mouseleave", () => { card.style.transform = "rotateX(0) rotateY(0)"; });
-    document.addEventListener("click", () => {
-        cursor.classList.remove("click");
-        void cursor.offsetWidth;
-        cursor.classList.add("click");
-    });
+// --- Город шум ---
+const citySpan = document.createElement("span"); 
+citySpan.className="city"; 
+document.getElementById("line4").appendChild(citySpan);
+function randomCity(){const c="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()[]{}<>?/|\\~"; let s=""; for(let i=0;i<7;i++){s+=c.charAt(Math.floor(Math.random()*c.length));} return s;}
+setInterval(()=>{citySpan.textContent=randomCity();},50);
+
+// --- Печатаем текст ---
+let iLine=0, iChar=0;
+function typeText(){
+  if(iLine>=textLines.length) return;
+  const el=document.getElementById(textLines[iLine].el);
+  if(iChar<textLines[iLine].text.length){
+    el.textContent+=textLines[iLine].text[iChar];
+    document.getElementById("typeSound").play();
+    iChar++;
+    setTimeout(typeText,60);
+  } else { iLine++; iChar=0; setTimeout(typeText,200); }
 }
+typeText();
 
-// Город: быстрый шум (буквы, цифры, символы)
-function randomCity(){
-    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()[]{}<>?/|\\~";
-    let str = "";
-    for(let i=0;i<7;i++){ str += chars.charAt(Math.floor(Math.random()*chars.length)); }
-    return str;
-}
-setInterval(()=>{ city.textContent = randomCity(); }, 50);
-
-// снег
+// --- Снег ---
 const canvas = document.getElementById("snow");
 const ctx = canvas.getContext("2d");
 let w,h;
 function resize(){ w=canvas.width=window.innerWidth; h=canvas.height=window.innerHeight; }
 resize(); window.addEventListener("resize",resize);
-
 const snowflakes = Array.from({length:120},()=>({x:Math.random()*w,y:Math.random()*h,r:Math.random()*2+0.5,s:Math.random()*0.6+0.2}));
-
 function snow(){
-    ctx.clearRect(0,0,w,h);
-    ctx.fillStyle="rgba(255,255,255,0.8)";
-    snowflakes.forEach(f=>{
-        ctx.beginPath();
-        ctx.arc(f.x,f.y,f.r,0,Math.PI*2);
-        ctx.fill();
-        f.y+=f.s;
-        if(f.y>h){ f.y=-5; f.x=Math.random()*w; }
-    });
-    requestAnimationFrame(snow);
+  ctx.clearRect(0,0,w,h);
+  ctx.fillStyle="rgba(255,255,255,0.8)";
+  snowflakes.forEach(f=>{
+    ctx.beginPath();
+    ctx.arc(f.x,f.y,f.r,0,Math.PI*2);
+    ctx.fill();
+    f.y+=f.s;
+    if(f.y>h){f.y=-5; f.x=Math.random()*w;}
+  });
+  requestAnimationFrame(snow);
 }
 snow();
-</script>
 
+// --- Рисование ---
+const drawCanvas=document.getElementById("draw");
+const dctx=drawCanvas.getContext("2d");
+function resizeDraw(){drawCanvas.width=window.innerWidth; drawCanvas.height=window.innerHeight;}
+resizeDraw(); window.addEventListener("resize",resizeDraw);
+let drawing=false;
+drawCanvas.addEventListener("mousedown",()=>{drawing=true; document.getElementById("clickSound").play();});
+drawCanvas.addEventListener("mouseup",()=>{drawing=false;});
+drawCanvas.addEventListener("mousemove",e=>{
+  if(drawing){dctx.fillStyle="rgba(255,255,255,0.3)"; dctx.beginPath(); dctx.arc(e.clientX,e.clientY,6,0,Math.PI*2); dctx.fill();}
+});
+// Сброс Q
+document.addEventListener("keydown",e=>{if(e.key.toLowerCase()=="q"){dctx.clearRect(0,0,drawCanvas.width,drawCanvas.height);}});
+drawCanvas.addEventListener("click",()=>{document.getElementById("clickSound").play();});
+</script>
 </body>
 </html>
