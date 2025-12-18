@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>lie2srvv</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: linear-gradient(120deg, #1a1a1a, #222);
+            color: #f1f1f1;
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 420px;
+            width: 90%;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+        }
+
+        h1 {
+            margin-top: 0;
+            font-size: 24px;
+        }
+
+        p {
+            line-height: 1.5;
+            margin: 12px 0;
+        }
+
+        .links {
+            margin-top: 20px;
+        }
+
+        .links a {
+            display: inline-block;
+            margin-top: 6px;
+            color: #7cc7ff;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .links a:hover {
+            text-decoration: underline;
+        }
+
+        .cursor {
+            position: fixed;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            pointer-events: none;
+            background: rgba(255, 255, 255, 0.15);
+            transform: translate(-50%, -50%);
+            transition: transform 0.05s ease;
+        }
+
+        .click {
+            animation: clickAnim 0.4s ease;
+        }
+
+        @keyframes clickAnim {
+            0% { transform: scale(1); opacity: 0.6; }
+            100% { transform: scale(2.5); opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="card" id="card">
+    <h1>Я lie2srvv (ТГ: @lie2srvv)</h1>
+
+    <p>В жизни зовут Александр.</p>
+
+    <p>
+        Мне 16 лет, учусь в 11 классе.  
+        Живу в России, г. #######.  
+        Увлекаюсь программированием, люблю всякие логические задачи 🌸
+    </p>
+
+    <div class="links">
+        <p>🔗 Мои ссылки:</p>
+        <a href="https://t.me/lie2srvv" target="_blank">💬 ТГ канал: @lie2srvv</a>
+
+        <p style="margin-top: 15px;">🤑 Денюжки:</p>
+        <p>💳 Если хотите прислать, то в лс тг :Р</p>
+    </div>
+</div>
+
+<div class="cursor" id="cursor"></div>
+
+<script>
+    const card = document.getElementById("card");
+    const cursor = document.getElementById("cursor");
+
+    document.addEventListener("mousemove", (e) => {
+        const x = (window.innerWidth / 2 - e.clientX) / 30;
+        const y = (window.innerHeight / 2 - e.clientY) / 30;
+
+        card.style.transform = `rotateX(${y}deg) rotateY(${x}deg)`;
+        cursor.style.left = e.clientX + "px";
+        cursor.style.top = e.clientY + "px";
+    });
+
+    document.addEventListener("click", () => {
+        cursor.classList.remove("click");
+        void cursor.offsetWidth;
+        cursor.classList.add("click");
+    });
+</script>
+
+</body>
+</html>
