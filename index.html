@@ -20,11 +20,18 @@ canvas#snow, canvas#draw{position:fixed; inset:0; z-index:0;}
 h1{margin-top:0; font-size:23px; color:#ffffff;}
 p{line-height:1.55; margin:6px 0; color:#d9d9d9; text-align:left; word-break:keep-all;}
 .city{font-style:italic; color:#bdbdbd; display:inline-block; width:auto;}
-.divider{border-top:1px solid rgba(255,255,255,0.2); margin:15px 0; opacity:0; transition:opacity 0.5s;}
+.divider{
+  border-top:2px solid rgba(255,255,255,0.3);
+  width:100%;
+  margin:15px 0;
+  opacity:0;
+  transition:opacity 0.5s;
+}
 .links a{display:inline-block; margin-top:6px; color:#ffffff; text-decoration:none; font-weight:bold;}
 .links a:hover{text-decoration:underline;}
 #hint{opacity:0.5; font-size:12px; color:#fff; margin-top:8px; display:none; flex-direction:column;}
 #colorDot{display:inline-block; width:12px; height:12px; border-radius:50%; margin-left:6px; vertical-align:middle;}
+#drawHint{position:absolute; top:20px; width:100%; text-align:center; color:rgba(255,255,255,0.6); font-size:14px; z-index:2; display:none;}
 @media(max-width:480px){.card{padding:16px 20px; border-radius:18px;} h1{font-size:20px;}}
 </style>
 </head>
@@ -35,6 +42,8 @@ p{line-height:1.55; margin:6px 0; color:#d9d9d9; text-align:left; word-break:kee
 
 <canvas id="snow"></canvas>
 <canvas id="draw"></canvas>
+
+<div id="drawHint">Вы можете порисовать, зажав курсор, если вам скучно :)</div>
 
 <div class="card" id="card">
   <h1 id="line1"></h1>
@@ -56,7 +65,7 @@ p{line-height:1.55; margin:6px 0; color:#d9d9d9; text-align:left; word-break:kee
 
   <div id="hint">
     <span>W - смена цвета <span id="colorDot"></span></span>
-    <span>Q - сбросить рисунка</span>
+    <span>Q - сбросить рисунок</span>
   </div>
 </div>
 
@@ -79,11 +88,10 @@ const textLines = [
   {el:"line7", text:"🏦 СБП в лс ТГ"}
 ];
 
-// --- Город случайный (только русские буквы, очень быстро) ---
+// --- Город / рандомный текст ---
 const letters="абвгдеёжзийклмнопрстуфхцчшщъыьэюя";
 const citySpan = document.createElement("span"); 
 citySpan.className="city"; 
-
 function randomCity(){
   let city = letters.charAt(Math.floor(Math.random()*letters.length)).toUpperCase();
   for(let i=1;i<6;i++){
@@ -105,10 +113,10 @@ function typeText(){
       iChar++;
       setTimeout(typeText,60);
     } else {
-      if(item.el=="line2" || item.el=="line3" || item.el=="line5") document.getElementById("div"+(iLine)).style.opacity=1;
+      if(item.divider) document.getElementById(item.divider).style.opacity=1;
       if(item.el=="line4"){
         el.appendChild(citySpan);
-        setInterval(()=>{citySpan.textContent=randomCity();},50);
+        setInterval(()=>{citySpan.textContent=randomCity();},30);
       }
       iLine++; iChar=0;
       setTimeout(typeText,200);
@@ -158,6 +166,7 @@ let colors = ["#FF0000","#FF7F00","#FFFF00","#00FF00","#00FFFF","#0000FF","#8B00
 let currentColor = 0;
 let rainbowHue=0;
 const colorDot = document.getElementById("colorDot");
+
 function updateColorDot(){
   if(colors[currentColor]==="rainbow"){
     colorDot.style.background = `hsl(${rainbowHue},100%,50%)`;
@@ -166,10 +175,17 @@ function updateColorDot(){
   }
 }
 
+// --- Подсказка для рисования ---
+const drawHint = document.getElementById("drawHint");
+if(isDesktop) drawHint.style.display="block";
+
 drawCanvas.addEventListener("mousedown",(e)=>{
   drawing=true; lastX=e.clientX; lastY=e.clientY;
   document.getElementById("clickSound").play();
-  if(isDesktop) document.getElementById("hint").style.display="flex";
+  if(isDesktop){
+    document.getElementById("hint").style.display="flex";
+    drawHint.style.display="none";
+  }
 });
 drawCanvas.addEventListener("mouseup",()=>{drawing=false; lastX=null; lastY=null;});
 drawCanvas.addEventListener("mousemove",e=>{
