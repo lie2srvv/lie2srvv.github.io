@@ -1,5 +1,4 @@
-<!DOCTYPE html>
-<html lang="ru">
+<!DOCTYPE html><html lang="ru">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no" />
@@ -44,57 +43,47 @@
   .hint{font-size:12px;color:var(--muted);text-align:center;margin-top:8px}
 </style>
 </head>
-<body>
+<body><canvas id="snow"></canvas> <canvas id="canvasLayer"></canvas>
 
-<canvas id="snow"></canvas>
-<canvas id="canvasLayer"></canvas>
-
-<!-- UI: панель в центре (pointer-events = auto) -->
-<div id="ui">
+<!-- UI: панель в центре (pointer-events = auto) --><div id="ui">
   <div id="panel">
     <div style="display:flex;justify-content:space-between;align-items:center">
       <div>
         <div class="title">lie2srvv</div>
         <div class="nick">@lie2srvv</div>
-      </div>
-      <div class="muted">Россия, г. ?</div>
+      </div></div>
+
+<p class="muted" style="margin:8px 0">Александр, 16 лет. Увлекаюсь программированием, можете порисовать на этом сайте, если скучно :)</p>
+
+<div style="margin-top:8px">
+  <div class="muted" style="margin-bottom:6px">Цвета</div>
+  <div class="colors" id="palette"></div>
+
+  <div class="controls">
+    <div class="left">
+      <label class="muted" style="margin-right:6px">HEX</label>
+      <input id="hex" class="hex" type="text" maxlength="7" placeholder="#FFFFFF" />
+      <button id="rgb" class="rgbBtn" title="Динамический RGB">RGB</button>
     </div>
 
-    <p class="muted" style="margin:8px 0">Александр, 16 лет. Увлекаюсь программированием, можете порисовать на этом сайте, если скучно :)</p>
-
-    <div style="margin-top:8px">
-      <div class="muted" style="margin-bottom:6px">Цвета</div>
-      <div class="colors" id="palette"></div>
-
-      <div class="controls">
-        <div class="left">
-          <label class="muted" style="margin-right:6px">HEX</label>
-          <input id="hex" class="hex" type="text" maxlength="7" placeholder="#FFFFFF" />
-          <button id="rgb" class="rgbBtn" title="Динамический RGB">RGB</button>
-        </div>
-
-        <div class="sizeControl">
-          <label class="muted">Толщина</label>
-          <input id="width" class="slider" type="range" min="1" max="40" value="4" />
-        </div>
-
-        <button id="openPalette" class="paletteBtn" title="Открыть круговую палитру">Палитра</button>
-        <button id="clear" class="clear">Очистить</button>
-      </div>
-
-      <div class="hint">Нажми ☰ (ПКМ для ПК), чтобы скрыть / показать панель. Чтобы рисовать — коснись и тяни по экрану.</div>
+    <div class="sizeControl">
+      <label class="muted">Толщина</label>
+      <input id="width" class="slider" type="range" min="1" max="40" value="4" />
     </div>
+
+    <button id="openPalette" class="paletteBtn" title="Открыть круговую палитру">Палитра</button>
+    <button id="openBg" class="paletteBtn" title="Настройки фона">Фон</button>
+    <button id="clear" class="clear">Очистить</button>
   </div>
+
+  <div class="hint">Нажми ☰ (ПКМ для ПК), чтобы скрыть / показать панель. Чтобы рисовать — коснись и тяни по экрану.</div>
 </div>
 
-<!-- всплывающая круговая палитра -->
-<div id="wheelPopup">
+  </div>
+</div><!-- всплывающая круговая палитра --><div id="wheelPopup">
   <canvas id="colorWheel" width="240" height="240"></canvas>
   <div style="text-align:center"><button id="wheelClose" aria-label="Закрыть">Закрыть</button></div>
-</div>
-
-<!-- бургер внизу по центру -->
-<button id="burger" aria-label="menu">☰</button>
+</div><!-- бургер внизу по центру --><button id="burger" aria-label="menu">☰</button>
 
 <script>
 /* ============ Snow background ============ */
@@ -141,12 +130,18 @@
   const burger = document.getElementById('burger');
   const panel = document.getElementById('panel');
   const openPalette = document.getElementById('openPalette');
+  const openBg = document.getElementById('openBg');
   const wheelPopup = document.getElementById('wheelPopup');
   const wheelCanvas = document.getElementById('colorWheel');
   const wheelClose = document.getElementById('wheelClose');
 
   // palette: 1 white + 7 rainbow
-  const PALETTE = ['#FFFFFF','#FF3B30','#FF9500','#FFCC00','#4CD964','#007AFF','#5856D6','#AF52DE'];
+  const PALETTE = [
+    // первая строка: белый, чёрный, цвет фона (ластик)
+    '#FFFFFF', '#000000', 'BG',
+    // вторая строка: радуга
+    '#FF3B30', '#FF9500', '#FFCC00', '#4CD964', '#5AC8FA', '#007AFF', '#AF52DE'
+  ];
 
   // state
   let currentColor = '#FFFFFF';
@@ -173,14 +168,29 @@
   // build palette UI
   function renderPalette(){
     paletteEl.innerHTML = '';
-    for(const col of PALETTE){
+    PALETTE.forEach((col, i)=>{
+      if(i === 3){
+        const br = document.createElement('div');
+        br.style.flexBasis = '100%';
+        paletteEl.appendChild(br);
+      }
       const b = document.createElement('button');
       b.className = 'sw';
-      b.style.background = col;
-      b.title = col;
-      b.addEventListener('click', ()=>{ useRGB = false; currentColor = col; updateUI(); });
+      if(col === 'BG'){
+        b.style.background = 'linear-gradient(45deg,#333,#000)';
+        b.title = 'Цвет фона (ластик)';
+        b.addEventListener('click', ()=>{
+          useRGB = false;
+          currentColor = getComputedStyle(document.body).backgroundColor;
+          updateUI();
+        });
+      } else {
+        b.style.background = col;
+        b.title = col;
+        b.addEventListener('click', ()=>{ useRGB = false; currentColor = col; updateUI(); });
+      }
       paletteEl.appendChild(b);
-    }
+    });
   }
   renderPalette();
 
@@ -423,9 +433,21 @@
   updateUI();
 
   // expose debug
+  // фон
+  function setBackground(color){
+    document.body.style.background = color;
+  }
+
+  openBg.addEventListener('click', ()=>{
+    showWheel();
+    wheelCanvas.onclick = (e)=>{
+      onWheelClick(e);
+      setBackground(currentColor);
+    };
+  });
+
   window.__canvasApp = { paths, clear: ()=>{ paths.length=0; redraw(); } };
 
 })();
-</script>
-</body>
+</script></body>
 </html>
