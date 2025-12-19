@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no" />
-<title>lie2srvv — рисовашка</title>
+<title>lie2srvv — холст</title>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;700&display=swap" rel="stylesheet">
 <script src="https://cdn.tailwindcss.com"></script>
 <style>
@@ -48,10 +48,10 @@
         <div class="title">lie2srvv</div>
         <div class="nick">@lie2srvv</div>
       </div>
-      <div class="muted">Россия, г. ???????</div>
+      <div class="muted">Россия</div>
     </div>
 
-    <p class="muted" style="margin:8px 0">Александр, 16 лет. Увлекаюсь программированием. Можете порисовать на этом сайте, если вам скучно:)</p>
+    <p class="muted" style="margin:8px 0">Александр, 16 лет. Увлекаюсь программированием, люблю логические задачки.</p>
 
     <div style="margin-top:8px">
       <div class="muted" style="margin-bottom:6px">Цвета</div>
@@ -66,7 +66,7 @@
         <button id="clear" class="clear">Очистить</button>
       </div>
 
-      <div class="hint">Нажми ☰, чтобы скрыть / показать панель. Чтобы рисовать — коснись и тяни по экрану.</div>
+      <div class="hint">Нажми ☰, чтобы скрыть/показать панель. Чтобы рисовать — коснись и тяни по экрану.</div>
     </div>
   </div>
 </div>
@@ -199,11 +199,11 @@
     panel.style.display = visible ? 'none' : 'block';
   });
 
-  // NEW: open panel on right-click (contextmenu) — prevent default context menu
+  // NEW: open/close panel on right-click (contextmenu) — prevent default context menu and toggle panel
   window.addEventListener('contextmenu', (e) => {
     e.preventDefault();
-    // show panel
-    panel.style.display = 'block';
+    const visible = panel.style.display !== 'none';
+    panel.style.display = visible ? 'none' : 'block';
   });
 
   // pointer events (unified)
