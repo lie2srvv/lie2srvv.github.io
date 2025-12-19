@@ -23,7 +23,7 @@
         }
         .custom-scroll::-webkit-scrollbar { width: 4px; }
         .custom-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
-        canvas { touch-action: none; display: block; }
+        canvas { touch-action: none; display: block; cursor: crosshair; }
     </style>
 </head>
 <body>
@@ -38,7 +38,7 @@
     </script>
 
     <script type="text/babel">
-        const { useState, useEffect, useRef } = React;
+        const { useState, useEffect, useRef, useCallback } = React;
 
         const App = () => {
             const [db, setDb] = useState(null);
@@ -52,15 +52,14 @@
             const [adminPass, setAdminPass] = useState('');
             const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
             
-            // Состояние для "шумного" города
             const [cityNoise, setCityNoise] = useState('ЗАГРУЗКА');
 
             const canvasRef = useRef(null);
             const pathsRef = useRef([]); 
-            const [drawing, setDrawing] = useState(false);
+            const isDrawingRef = useRef(false);
             const [colorIdx, setColorIdx] = useState(0);
             const colors = ["#FFFFFF", "#FF0000", "#FF7F00", "#FFFF00", "#00FF00", "#0000FF", "#4B0082", "#9400D3", "rainbow"];
-            const [hue, setHue] = useState(0);
+            const hueRef = useRef(0);
 
             const appId = 'lie2srvv-app';
 
@@ -69,7 +68,14 @@
                 const checkFb = setInterval(() => {
                     if (window.fb) {
                         clearInterval(checkFb);
-                        const firebaseConfig = window.__firebase_config ? JSON.parse(window.__firebase_config) : {};
+                        const firebaseConfig = window.__firebase_config ? JSON.parse(window.__firebase_config) : {
+                            apiKey: "",
+                            authDomain: "placeholder.firebaseapp.com",
+                            projectId: "placeholder",
+                            storageBucket: "placeholder.appspot.com",
+                            messagingSenderId: "000000",
+                            appId: "000000"
+                        };
                         try {
                             const app = window.fb.initializeApp(firebaseConfig);
                             const _db = window.fb.getFirestore(app);
@@ -94,7 +100,21 @@
                 return () => unsubscribe();
             }, [db, user, isAdminAuthenticated]);
 
-            // Главный цикл анимации (Радуга + Город + Холст)
+            // Ресайз холста
+            const resizeCanvas = useCallback(() => {
+                if (canvasRef.current) {
+                    canvasRef.current.width = window.innerWidth;
+                    canvasRef.current.height = window.innerHeight;
+                }
+            }, []);
+
+            useEffect(() => {
+                window.addEventListener('resize', resizeCanvas);
+                resizeCanvas();
+                return () => window.removeEventListener('resize', resizeCanvas);
+            }, [resizeCanvas, currentPage]);
+
+            // Главный цикл анимации
             useEffect(() => {
                 let frame;
                 const chars = "абвгдеёжзийклмнопрстуфхцчшщъыьэюя";
@@ -102,10 +122,10 @@
 
                 const render = (time) => {
                     // Обновление радуги
-                    setHue(h => (h + 2) % 360);
+                    hueRef.current = (hueRef.current + 2) % 360;
 
-                    // Обновление шума города (каждые 50мс)
-                    if (time - lastNoiseUpdate > 50) {
+                    // Обновление шума города
+                    if (time - lastNoiseUpdate > 70) {
                         let res = "";
                         for(let i=0; i<6; i++) res += chars[Math.floor(Math.random()*chars.length)];
                         setCityNoise(res.toUpperCase());
@@ -113,23 +133,23 @@
                     }
 
                     // Перерисовка холста
-                    if (canvasRef.current) {
+                    if (canvasRef.current && currentPage === 'draw') {
                         const canvas = canvasRef.current;
                         const ctx = canvas.getContext('2d');
                         ctx.clearRect(0, 0, canvas.width, canvas.height);
                         
                         pathsRef.current.forEach(path => {
+                            if (path.points.length < 2) return;
                             ctx.beginPath();
                             ctx.lineWidth = 5;
                             ctx.lineCap = 'round';
                             ctx.lineJoin = 'round';
-                            // Используем актуальное значение hue для rainbow путей
-                            ctx.strokeStyle = path.color === 'rainbow' ? `hsl(${hue}, 100%, 50%)` : path.color;
+                            ctx.strokeStyle = path.color === 'rainbow' ? `hsl(${hueRef.current}, 100%, 50%)` : path.color;
                             
-                            path.points.forEach((p, i) => {
-                                if (i === 0) ctx.moveTo(p.x, p.y);
-                                else ctx.lineTo(p.x, p.y);
-                            });
+                            ctx.moveTo(path.points[0].x, path.points[0].y);
+                            for(let i = 1; i < path.points.length; i++) {
+                                ctx.lineTo(path.points[i].x, path.points[i].y);
+                            }
                             ctx.stroke();
                         });
                     }
@@ -137,27 +157,39 @@
                 };
                 frame = requestAnimationFrame(render);
                 return () => cancelAnimationFrame(frame);
-            }, [hue]);
+            }, [currentPage]);
+
+            const getPos = (e) => {
+                const rect = canvasRef.current.getBoundingClientRect();
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                return {
+                    x: clientX - rect.left,
+                    y: clientY - rect.top
+                };
+            };
 
             const startDrawing = (e) => {
                 if (currentPage !== 'draw' || !canvasRef.current) return;
-                const rect = canvasRef.current.getBoundingClientRect();
-                const x = (e.clientX || (e.touches && e.touches[0].clientX)) - rect.left;
-                const y = (e.clientY || (e.touches && e.touches[0].clientY)) - rect.top;
-                
-                pathsRef.current.push({ color: colors[colorIdx], points: [{x, y}] });
-                setDrawing(true);
+                isDrawingRef.current = true;
+                const pos = getPos(e);
+                pathsRef.current.push({ 
+                    color: colors[colorIdx], 
+                    points: [pos] 
+                });
             };
 
             const drawMove = (e) => {
-                if (!drawing || currentPage !== 'draw') return;
-                const rect = canvasRef.current.getBoundingClientRect();
-                const x = (e.clientX || (e.touches && e.touches[0].clientX)) - rect.left;
-                const y = (e.clientY || (e.touches && e.touches[0].clientY)) - rect.top;
-                
-                if (pathsRef.current.length > 0) {
-                    pathsRef.current[pathsRef.current.length - 1].points.push({x, y});
+                if (!isDrawingRef.current || currentPage !== 'draw') return;
+                const pos = getPos(e);
+                const currentPath = pathsRef.current[pathsRef.current.length - 1];
+                if (currentPath) {
+                    currentPath.points.push(pos);
                 }
+            };
+
+            const stopDrawing = () => {
+                isDrawingRef.current = false;
             };
 
             const sendQuestion = async () => {
@@ -170,16 +202,15 @@
                         userId: user?.uid || 'anon'
                     });
                     setQuestion('');
-                    alert('Вопрос отправлен анонимно!');
                 } catch (e) {
-                    alert('Ошибка при отправке');
+                    console.error(e);
                 } finally {
                     setIsSending(false);
                 }
             };
 
             return (
-                <div className="min-h-screen w-full relative bg-[#0a0a0a]">
+                <div className="min-h-screen w-full relative bg-[#0a0a0a] select-none">
                     {/* Фон: Снег */}
                     <div className="fixed inset-0 pointer-events-none z-0 opacity-20">
                         {[...Array(30)].map((_, i) => (
@@ -208,9 +239,9 @@
                         ))}
                     </div>
 
-                    <main className="relative z-10 h-screen w-full flex items-center justify-center p-6">
+                    <main className="relative z-10 h-screen w-full flex items-center justify-center overflow-hidden">
                         {currentPage === 'info' && (
-                            <div className="bg-white/[0.03] backdrop-blur-2xl border border-white/10 p-10 rounded-[2.5rem] max-w-md w-full shadow-2xl animate-fadeUp">
+                            <div className="bg-white/[0.03] backdrop-blur-2xl border border-white/10 p-10 rounded-[2.5rem] max-w-md w-full shadow-2xl animate-fadeUp mx-6">
                                 <h1 className="text-3xl font-bold mb-2 tracking-tight">lie2srvv</h1>
                                 <p className="text-white/40 mb-8 font-medium italic">@lie2srvv</p>
                                 
@@ -245,22 +276,36 @@
                         )}
 
                         {currentPage === 'draw' && (
-                            <div className="absolute inset-0 overflow-hidden">
-                                <canvas ref={canvasRef} className="w-full h-full" width={window.innerWidth} height={window.innerHeight}
-                                    onMouseDown={startDrawing} onMouseMove={drawMove} onMouseUp={() => setDrawing(false)}
-                                    onMouseLeave={() => setDrawing(false)}
-                                    onTouchStart={(e) => startDrawing(e.touches[0])} onTouchMove={(e) => drawMove(e.touches[0])} onTouchEnd={() => setDrawing(false)}
+                            <div className="absolute inset-0 w-full h-full">
+                                <canvas 
+                                    ref={canvasRef} 
+                                    className="w-full h-full"
+                                    onMouseDown={startDrawing} 
+                                    onMouseMove={drawMove} 
+                                    onMouseUp={stopDrawing}
+                                    onMouseLeave={stopDrawing}
+                                    onTouchStart={startDrawing} 
+                                    onTouchMove={drawMove} 
+                                    onTouchEnd={stopDrawing}
                                 />
                                 <div className="fixed bottom-12 left-1/2 -translate-x-1/2 flex items-center gap-6 bg-black/80 backdrop-blur-2xl p-4 px-8 rounded-full border border-white/10 shadow-2xl z-20">
-                                    <button onClick={() => setColorIdx((colorIdx + 1) % colors.length)} className="w-12 h-12 rounded-full border-4 border-white/20 transition-transform active:scale-90" 
-                                        style={{background: colors[colorIdx] === 'rainbow' ? `hsl(${hue},100%,50%)` : colors[colorIdx]}} />
-                                    <button onClick={() => { pathsRef.current = []; }} className="bg-white/10 px-6 py-3 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-white/20 transition-all">Clear</button>
+                                    <button 
+                                        onClick={() => setColorIdx((colorIdx + 1) % colors.length)} 
+                                        className="w-12 h-12 rounded-full border-4 border-white/20 transition-transform active:scale-90" 
+                                        style={{background: colors[colorIdx] === 'rainbow' ? `hsl(${hueRef.current},100%,50%)` : colors[colorIdx]}} 
+                                    />
+                                    <button 
+                                        onClick={() => { pathsRef.current = []; }} 
+                                        className="bg-white/10 px-6 py-3 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-white/20 transition-all"
+                                    >
+                                        Clear
+                                    </button>
                                 </div>
                             </div>
                         )}
 
                         {currentPage === 'ask' && (
-                            <div className="bg-white/[0.03] backdrop-blur-2xl border border-white/10 p-10 rounded-[2.5rem] max-w-md w-full shadow-2xl animate-fadeUp">
+                            <div className="bg-white/[0.03] backdrop-blur-2xl border border-white/10 p-10 rounded-[2.5rem] max-w-md w-full shadow-2xl animate-fadeUp mx-6">
                                 {!isAdminAuthenticated ? (
                                     <>
                                         <h2 className="text-2xl font-bold mb-6">Анонимно</h2>
