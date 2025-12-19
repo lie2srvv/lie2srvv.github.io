@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { initializeApp } from 'firebase/app';
-import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
+import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
 import { getFirestore, collection, addDoc, onSnapshot, query, Timestamp } from 'firebase/firestore';
 
-// --- Конфигурация Firebase ---
+// --- Инициализация Firebase ---
 const firebaseConfig = JSON.parse(__firebase_config);
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'anonymous-questions-app';
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'lie2srvv-app';
 
 const App = () => {
   const [user, setUser] = useState(null);
@@ -21,57 +21,71 @@ const App = () => {
   const [adminPass, setAdminPass] = useState('');
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
 
-  // --- Настройки рисования ---
+  // Состояние рисования
   const canvasRef = useRef(null);
   const [drawing, setDrawing] = useState(false);
   const [colorIdx, setColorIdx] = useState(0);
   const colors = ["#FFFFFF", "#FF0000", "#FF7F00", "#FFFF00", "#00FF00", "#0000FF", "#4B0082", "#9400D3", "rainbow"];
   const [hue, setHue] = useState(0);
 
-  // --- Авторизация Firebase ---
+  // 1. Авторизация
   useEffect(() => {
-    signInAnonymously(auth).catch(console.error);
-    return onAuthStateChanged(auth, setUser);
+    const initAuth = async () => {
+      if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+        await signInWithCustomToken(auth, __initial_auth_token);
+      } else {
+        await signInAnonymously(auth);
+      }
+    };
+    initAuth();
+    const unsubscribe = onAuthStateChanged(auth, setUser);
+    return () => unsubscribe();
   }, []);
 
-  // --- Подписка на вопросы (для админа) ---
+  // 2. Слушатель вопросов (только для админа)
   useEffect(() => {
     if (!user || !isAdminAuthenticated) return;
-    const q = collection(db, 'artifacts', appId, 'public', 'data', 'questions');
-    return onSnapshot(q, (snapshot) => {
+    const qCol = collection(db, 'artifacts', appId, 'public', 'data', 'questions');
+    const unsubscribe = onSnapshot(qCol, (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setQuestionsList(data.sort((a, b) => b.createdAt?.seconds - a.createdAt?.seconds));
+      setQuestionsList(data.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)));
     }, (err) => console.error("Firestore error:", err));
+    return () => unsubscribe();
   }, [user, isAdminAuthenticated]);
 
-  // --- Логика рисования ---
+  // 3. Анимация радуги
   useEffect(() => {
-    if (currentPage !== 'draw') return;
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-
+    let frame;
     const animate = () => {
       setHue(h => (h + 2) % 360);
-      requestAnimationFrame(animate);
+      frame = requestAnimationFrame(animate);
     };
-    const id = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(id);
+    frame = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(frame);
+  }, []);
+
+  // 4. Подстройка холста
+  useEffect(() => {
+    if (currentPage === 'draw' && canvasRef.current) {
+      const canvas = canvasRef.current;
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
   }, [currentPage]);
 
   const sendQuestion = async () => {
-    if (!question.trim() || isSending) return;
+    if (!question.trim() || isSending || !user) return;
     setIsSending(true);
     try {
       await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'questions'), {
         text: question,
         createdAt: Timestamp.now(),
-        userId: user?.uid || 'anon'
+        userId: user.uid
       });
       setQuestion('');
-      alert('Вопрос отправлен!');
+      alert('Вопрос отправлен анонимно!');
     } catch (e) {
+      console.error(e);
       alert('Ошибка при отправке');
     } finally {
       setIsSending(false);
@@ -79,99 +93,147 @@ const App = () => {
   };
 
   const handleAdminAuth = () => {
-    if (adminPass === 'Lie2Admin') { // не заходите пжпж
+    if (adminPass === 'Lie2Admin') {
       setIsAdminAuthenticated(true);
     } else {
       alert('Неверный пароль');
     }
   };
 
+  const draw = (e) => {
+    if (!drawing || !canvasRef.current) return;
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    const rect = canvas.getBoundingClientRect();
+    const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+    const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+    
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
+
+    ctx.strokeStyle = colors[colorIdx] === 'rainbow' ? `hsl(${hue}, 100%, 50%)` : colors[colorIdx];
+    ctx.lineWidth = 5;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    ctx.lineTo(x, y);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+  };
+
+  const startDrawing = (e) => {
+    setDrawing(true);
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    const rect = canvas.getBoundingClientRect();
+    const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+    const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+    ctx.beginPath();
+    ctx.moveTo(clientX - rect.left, clientY - rect.top);
+  };
+
   return (
-    <div className="min-h-screen bg-[#0f0f0f] text-white font-['Montserrat'] overflow-hidden relative selection:bg-cyan-500/30">
-      {/* Фон со снегом (SVG CSS Animation для производительности) */}
-      <div className="fixed inset-0 pointer-events-none z-0 opacity-40">
-        {[...Array(50)].map((_, i) => (
+    <div className="min-h-screen bg-[#0a0a0a] text-white font-['Montserrat'] overflow-hidden relative">
+      {/* Анимированный снег на фоне */}
+      <div className="fixed inset-0 pointer-events-none z-0 opacity-30">
+        {[...Array(40)].map((_, i) => (
           <div 
             key={i}
-            className="absolute bg-white rounded-full animate-fall"
+            className="absolute bg-white rounded-full animate-snow"
             style={{
               left: `${Math.random() * 100}%`,
               width: `${Math.random() * 3 + 1}px`,
               height: `${Math.random() * 3 + 1}px`,
-              animationDuration: `${Math.random() * 10 + 5}s`,
+              animationDuration: `${Math.random() * 10 + 7}s`,
               animationDelay: `${Math.random() * 5}s`,
-              top: '-10px'
+              top: '-5%'
             }}
           />
         ))}
       </div>
 
-      {/* Бургер меню */}
+      {/* Кнопка Меню */}
       <button 
         onClick={() => setMenuOpen(!menuOpen)}
-        className="fixed top-6 right-6 z-50 p-3 bg-white/10 backdrop-blur-md rounded-xl border border-white/20 hover:bg-white/20 transition-all"
+        className="fixed top-6 right-6 z-50 p-4 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl hover:bg-white/10 transition-all active:scale-90"
       >
-        <div className="w-6 h-5 flex flex-col justify-between">
-          <span className={`h-0.5 w-full bg-white transition-all ${menuOpen ? 'rotate-45 translate-y-2' : ''}`} />
-          <span className={`h-0.5 w-full bg-white transition-all ${menuOpen ? 'opacity-0' : ''}`} />
-          <span className={`h-0.5 w-full bg-white transition-all ${menuOpen ? '-rotate-45 -translate-y-2' : ''}`} />
+        <div className="w-6 h-5 flex flex-col justify-between items-end">
+          <span className={`h-0.5 bg-white transition-all ${menuOpen ? 'w-6 rotate-45 translate-y-2' : 'w-6'}`} />
+          <span className={`h-0.5 bg-white transition-all ${menuOpen ? 'opacity-0' : 'w-4'}`} />
+          <span className={`h-0.5 bg-white transition-all ${menuOpen ? 'w-6 -rotate-45 -translate-y-2' : 'w-5'}`} />
         </div>
       </button>
 
-      {/* Навигация */}
-      <div className={`fixed inset-0 z-40 bg-black/90 backdrop-blur-2xl transition-all duration-500 flex flex-col items-center justify-center gap-8 ${menuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+      {/* Навигационная панель */}
+      <div className={`fixed inset-0 z-40 bg-black/95 backdrop-blur-3xl transition-all duration-500 flex flex-col items-center justify-center gap-10 ${menuOpen ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0 pointer-events-none'}`}>
         {['info', 'draw', 'ask'].map((page) => (
           <button
             key={page}
             onClick={() => { setCurrentPage(page); setMenuOpen(false); }}
-            className={`text-3xl font-bold capitalize transition-colors ${currentPage === page ? 'text-cyan-400' : 'text-white/50 hover:text-white'}`}
+            className={`text-4xl font-bold transition-all ${currentPage === page ? 'text-cyan-400 scale-110' : 'text-white/40 hover:text-white hover:scale-105'}`}
           >
-            {page === 'info' ? 'Профиль' : page === 'draw' ? 'Холст' : 'Анонимно'}
+            {page === 'info' ? 'Профиль' : page === 'draw' ? 'Холст' : 'Вопросы'}
           </button>
         ))}
       </div>
 
-      {/* Контент */}
-      <main className="relative z-10 h-screen flex items-center justify-center p-6">
+      {/* Основной контент */}
+      <main className="relative z-10 h-screen w-full flex items-center justify-center p-6">
         
-        {/* Профиль */}
         {currentPage === 'info' && (
-          <div className="bg-white/5 backdrop-blur-xl border border-white/10 p-8 rounded-[2rem] max-w-md w-full shadow-2xl animate-fadeUp">
-            <h1 className="text-2xl font-bold mb-2">Я lie2srvv (@lie2srvv)</h1>
-            <p className="text-white/70">В жизни зовут Александр.</p>
-            <div className="h-px bg-white/20 my-6" />
-            <p className="text-white/70">Мне 16 лет, учусь в 11 классе.</p>
-            <div className="h-px bg-white/20 my-6" />
-            <div className="flex flex-wrap items-center gap-1 text-white/70">
-              Живу в России, г. <CityGenerator />
+          <div className="bg-white/[0.03] backdrop-blur-2xl border border-white/10 p-10 rounded-[2.5rem] max-w-md w-full shadow-2xl animate-in">
+            <h1 className="text-3xl font-bold mb-2 tracking-tight">lie2srvv</h1>
+            <p className="text-white/60 mb-8 font-medium">@lie2srvv</p>
+            
+            <div className="space-y-6">
+              <div className="flex flex-col gap-1">
+                <span className="text-[10px] uppercase tracking-[0.2em] text-white/30 font-bold">Личное</span>
+                <p className="text-white/90">Александр, 16 лет</p>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <span className="text-[10px] uppercase tracking-[0.2em] text-white/30 font-bold">Локация</span>
+                <p className="text-white/90">Россия, г. <CityGenerator /></p>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <span className="text-[10px] uppercase tracking-[0.2em] text-white/30 font-bold">О себе</span>
+                <p className="text-white/90 text-sm leading-relaxed">Программирую, учусь в 11 классе, люблю логику и эстетику 🌸</p>
+              </div>
             </div>
-            <p className="text-white/70 mt-4">Программирую и решаю логические задачи 🌸</p>
-            <div className="h-px bg-white/20 my-6" />
-            <div className="flex flex-col gap-3">
-              <p className="font-bold text-white/50 text-sm uppercase tracking-widest">Контакты</p>
-              <a href="https://t.me/lie2survive" target="_blank" className="font-bold hover:text-cyan-400 transition-colors">💬 Телеграм Канал</a>
-              <a href="https://github.com/lie2srvv" target="_blank" className="font-bold hover:text-cyan-400 transition-colors">🕹️ Github</a>
+
+            <div className="h-px bg-white/10 my-8" />
+            
+            <div className="flex flex-col gap-4">
+              <a href="https://t.me/lie2survive" target="_blank" className="flex items-center justify-between group p-4 bg-white/5 rounded-2xl border border-white/5 hover:border-cyan-500/30 transition-all">
+                <span className="font-bold">Телеграм</span>
+                <span className="text-cyan-400 group-hover:translate-x-1 transition-transform">→</span>
+              </a>
+              <a href="https://github.com/lie2srvv" target="_blank" className="flex items-center justify-between group p-4 bg-white/5 rounded-2xl border border-white/5 hover:border-cyan-500/30 transition-all">
+                <span className="font-bold">Github</span>
+                <span className="text-cyan-400 group-hover:translate-x-1 transition-transform">→</span>
+              </a>
             </div>
           </div>
         )}
 
-        {/* Холст для рисования */}
         {currentPage === 'draw' && (
-          <div className="absolute inset-0 cursor-crosshair">
+          <div className="absolute inset-0 touch-none">
             <canvas 
               ref={canvasRef}
               className="w-full h-full"
-              onMouseDown={(e) => { setDrawing(true); draw(e); }}
+              onMouseDown={startDrawing}
               onMouseUp={() => setDrawing(false)}
-              onMouseMove={(e) => drawing && draw(e)}
-              onTouchStart={(e) => { setDrawing(true); draw(e.touches[0]); }}
+              onMouseMove={draw}
+              onTouchStart={(e) => startDrawing(e.touches[0])}
               onTouchEnd={() => setDrawing(false)}
-              onTouchMove={(e) => drawing && draw(e.touches[0])}
+              onTouchMove={(e) => draw(e.touches[0])}
             />
-            <div className="fixed bottom-10 left-1/2 -translate-x-1/2 flex items-center gap-4 bg-black/60 backdrop-blur-xl p-3 px-6 rounded-full border border-white/10 shadow-2xl">
+            <div className="fixed bottom-12 left-1/2 -translate-x-1/2 flex items-center gap-6 bg-black/80 backdrop-blur-2xl p-4 px-8 rounded-full border border-white/10 shadow-2xl animate-in">
               <button 
                 onClick={() => setColorIdx((colorIdx + 1) % colors.length)}
-                className="w-10 h-10 rounded-full border-2 border-white/40 transition-transform active:scale-90"
+                className="w-12 h-12 rounded-full border-4 border-white/20 transition-transform active:scale-90 shadow-inner"
                 style={{ background: colors[colorIdx] === 'rainbow' ? `hsl(${hue}, 100%, 50%)` : colors[colorIdx] }}
               />
               <button 
@@ -179,130 +241,111 @@ const App = () => {
                   const ctx = canvasRef.current.getContext('2d');
                   ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
                 }}
-                className="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full text-sm font-bold transition-all"
+                className="bg-white/10 hover:bg-white/20 px-6 py-3 rounded-full text-sm font-black uppercase tracking-widest transition-all"
               >
-                Очистить
+                Clear
               </button>
             </div>
           </div>
         )}
 
-        {/* Анонимные вопросы */}
         {currentPage === 'ask' && (
-          <div className="bg-white/5 backdrop-blur-xl border border-white/10 p-8 rounded-[2rem] max-w-md w-full shadow-2xl animate-fadeUp">
+          <div className="bg-white/[0.03] backdrop-blur-2xl border border-white/10 p-10 rounded-[2.5rem] max-w-md w-full shadow-2xl animate-in">
             {!isAdminAuthenticated ? (
               <>
-                <h2 className="text-2xl font-bold mb-6 text-center">Анонимный вопрос</h2>
+                <h2 className="text-2xl font-bold mb-6">Анонимный вопрос</h2>
                 <textarea
                   value={question}
                   onChange={(e) => setQuestion(e.target.value)}
-                  placeholder="Напиши что-нибудь..."
-                  className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 min-h-[120px] focus:outline-none focus:border-cyan-500/50 transition-colors resize-none mb-4"
+                  placeholder="Твое сообщение..."
+                  className="w-full bg-white/5 border border-white/10 rounded-[1.5rem] p-5 min-h-[140px] focus:outline-none focus:border-cyan-500/50 transition-all resize-none mb-6 placeholder:text-white/20"
                 />
                 <button
                   onClick={sendQuestion}
                   disabled={isSending || !question.trim()}
-                  className="w-full bg-cyan-500 hover:bg-cyan-400 disabled:bg-white/10 text-black font-bold py-4 rounded-2xl transition-all active:scale-95"
+                  className="w-full bg-white text-black font-black py-5 rounded-[1.5rem] transition-all active:scale-95 disabled:opacity-20 uppercase tracking-widest"
                 >
-                  {isSending ? 'Отправка...' : 'Отправить'}
+                  {isSending ? '...' : 'Отправить'}
                 </button>
-                <button 
-                  onClick={() => setShowAdmin(!showAdmin)}
-                  className="w-full mt-8 text-white/20 text-xs hover:text-white/50 transition-colors"
-                >
-                  Я владелец
-                </button>
-                {showAdmin && (
-                  <div className="mt-4 flex gap-2 animate-fadeUp">
-                    <input 
-                      type="password" 
-                      value={adminPass}
-                      onChange={(e) => setAdminPass(e.target.value)}
-                      placeholder="Пароль"
-                      className="flex-1 bg-white/5 border border-white/10 rounded-xl p-2 text-sm focus:outline-none"
-                    />
-                    <button onClick={handleAdminAuth} className="bg-white/10 px-4 rounded-xl text-xs font-bold">OK</button>
-                  </div>
-                )}
+                
+                <div className="mt-10 flex flex-col items-center">
+                  <button 
+                    onClick={() => setShowAdmin(!showAdmin)}
+                    className="text-[10px] text-white/10 hover:text-white/40 transition-colors uppercase tracking-[0.3em]"
+                  >
+                    Admin Access
+                  </button>
+                  {showAdmin && (
+                    <div className="mt-4 flex gap-2 w-full animate-in">
+                      <input 
+                        type="password" 
+                        value={adminPass}
+                        onChange={(e) => setAdminPass(e.target.value)}
+                        placeholder="Pass"
+                        className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 text-sm focus:outline-none"
+                      />
+                      <button onClick={handleAdminAuth} className="bg-cyan-500 text-black px-4 py-2 rounded-xl text-xs font-bold">OK</button>
+                    </div>
+                  )}
+                </div>
               </>
             ) : (
-              <div className="h-[400px] flex flex-col">
-                <div className="flex justify-between items-center mb-4">
-                  <h2 className="font-bold">Вопросы ({questionsList.length})</h2>
-                  <button onClick={() => setIsAdminAuthenticated(false)} className="text-xs text-cyan-400">Выход</button>
+              <div className="h-[450px] flex flex-col">
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="font-bold text-xl">Inbox ({questionsList.length})</h2>
+                  <button onClick={() => setIsAdminAuthenticated(false)} className="text-xs text-cyan-400 font-bold uppercase tracking-widest">Logout</button>
                 </div>
-                <div className="flex-1 overflow-y-auto pr-2 space-y-3 custom-scrollbar">
+                <div className="flex-1 overflow-y-auto pr-2 space-y-4 custom-scroll">
                   {questionsList.map(q => (
-                    <div key={q.id} className="bg-white/5 border border-white/10 p-4 rounded-2xl animate-fadeUp">
-                      <p className="text-sm">{q.text}</p>
-                      <p className="text-[10px] text-white/30 mt-2">
-                        {q.createdAt?.toDate().toLocaleString()}
+                    <div key={q.id} className="bg-white/5 border border-white/5 p-5 rounded-2xl border-l-2 border-l-cyan-500/50">
+                      <p className="text-sm leading-relaxed text-white/90">{q.text}</p>
+                      <p className="text-[10px] text-white/20 mt-3 font-mono">
+                        {q.createdAt?.toDate().toLocaleString() || 'Just now'}
                       </p>
                     </div>
                   ))}
-                  {questionsList.length === 0 && <p className="text-center text-white/20 mt-10">Вопросов пока нет</p>}
+                  {questionsList.length === 0 && (
+                    <div className="h-full flex flex-col items-center justify-center opacity-20">
+                      <p>Пусто</p>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
           </div>
         )}
-
       </main>
 
       <style dangerouslySetInnerHTML={{ __html: `
-        @keyframes fall {
-          0% { transform: translateY(-10vh) translateX(0); }
-          100% { transform: translateY(110vh) translateX(20px); }
+        @keyframes snow {
+          0% { transform: translateY(0) rotate(0deg); }
+          100% { transform: translateY(110vh) rotate(360deg); }
         }
-        .animate-fall { animation-name: fall; animation-iteration-count: infinite; animation-timing-function: linear; }
-        .animate-fadeUp { animation: fadeUp 0.6s cubic-bezier(0.23, 1, 0.32, 1) forwards; }
-        @keyframes fadeUp {
-          from { opacity: 0; transform: translateY(20px); }
-          to { opacity: 1; transform: translateY(0); }
+        .animate-snow { animation-name: snow; animation-iteration-count: infinite; animation-timing-function: linear; }
+        .animate-in { animation: in 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        @keyframes in {
+          from { opacity: 0; transform: translateY(30px) scale(0.95); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
         }
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+        .custom-scroll::-webkit-scrollbar { width: 4px; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
       `}} />
     </div>
   );
-
-  function draw(e) {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    const rect = canvas.getBoundingClientRect();
-    const x = (e.clientX || e.pageX) - rect.left;
-    const y = (e.clientY || e.pageY) - rect.top;
-
-    ctx.strokeStyle = colors[colorIdx] === 'rainbow' ? `hsl(${hue}, 100%, 50%)` : colors[colorIdx];
-    ctx.lineWidth = 4;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-
-    if (drawing) {
-      ctx.lineTo(x, y);
-      ctx.stroke();
-    }
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-  }
 };
 
 const CityGenerator = () => {
-  const [city, setCity] = useState('...');
+  const [city, setCity] = useState('');
   useEffect(() => {
     const letters = "абвгдеёжзийклмнопрстуфхцчшщъыьэюя";
     const interval = setInterval(() => {
       let c = letters[Math.floor(Math.random() * letters.length)].toUpperCase();
       for (let i = 0; i < 5; i++) c += letters[Math.floor(Math.random() * letters.length)];
       setCity(c);
-    }, 45);
+    }, 50);
     return () => clearInterval(interval);
   }, []);
-  return <span className="italic font-medium">{city}</span>;
+  return <span className="italic font-bold text-white/40">{city}</span>;
 };
 
-export default App;
-
-                    
+export default App;                 
