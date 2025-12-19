@@ -1,351 +1,272 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { initializeApp } from 'firebase/app';
-import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
-import { getFirestore, collection, addDoc, onSnapshot, query, Timestamp } from 'firebase/firestore';
-
-// --- Инициализация Firebase ---
-const firebaseConfig = JSON.parse(__firebase_config);
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'lie2srvv-app';
-
-const App = () => {
-  const [user, setUser] = useState(null);
-  const [currentPage, setCurrentPage] = useState('info');
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [question, setQuestion] = useState('');
-  const [questionsList, setQuestionsList] = useState([]);
-  const [isSending, setIsSending] = useState(false);
-  const [showAdmin, setShowAdmin] = useState(false);
-  const [adminPass, setAdminPass] = useState('');
-  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
-
-  // Состояние рисования
-  const canvasRef = useRef(null);
-  const [drawing, setDrawing] = useState(false);
-  const [colorIdx, setColorIdx] = useState(0);
-  const colors = ["#FFFFFF", "#FF0000", "#FF7F00", "#FFFF00", "#00FF00", "#0000FF", "#4B0082", "#9400D3", "rainbow"];
-  const [hue, setHue] = useState(0);
-
-  // 1. Авторизация
-  useEffect(() => {
-    const initAuth = async () => {
-      if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-        await signInWithCustomToken(auth, __initial_auth_token);
-      } else {
-        await signInAnonymously(auth);
-      }
-    };
-    initAuth();
-    const unsubscribe = onAuthStateChanged(auth, setUser);
-    return () => unsubscribe();
-  }, []);
-
-  // 2. Слушатель вопросов (только для админа)
-  useEffect(() => {
-    if (!user || !isAdminAuthenticated) return;
-    const qCol = collection(db, 'artifacts', appId, 'public', 'data', 'questions');
-    const unsubscribe = onSnapshot(qCol, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setQuestionsList(data.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)));
-    }, (err) => console.error("Firestore error:", err));
-    return () => unsubscribe();
-  }, [user, isAdminAuthenticated]);
-
-  // 3. Анимация радуги
-  useEffect(() => {
-    let frame;
-    const animate = () => {
-      setHue(h => (h + 2) % 360);
-      frame = requestAnimationFrame(animate);
-    };
-    frame = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(frame);
-  }, []);
-
-  // 4. Подстройка холста
-  useEffect(() => {
-    if (currentPage === 'draw' && canvasRef.current) {
-      const canvas = canvasRef.current;
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-    }
-  }, [currentPage]);
-
-  const sendQuestion = async () => {
-    if (!question.trim() || isSending || !user) return;
-    setIsSending(true);
-    try {
-      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'questions'), {
-        text: question,
-        createdAt: Timestamp.now(),
-        userId: user.uid
-      });
-      setQuestion('');
-      alert('Вопрос отправлен анонимно!');
-    } catch (e) {
-      console.error(e);
-      alert('Ошибка при отправке');
-    } finally {
-      setIsSending(false);
-    }
-  };
-
-  const handleAdminAuth = () => {
-    if (adminPass === 'Lie2Admin') {
-      setIsAdminAuthenticated(true);
-    } else {
-      alert('Неверный пароль');
-    }
-  };
-
-  const draw = (e) => {
-    if (!drawing || !canvasRef.current) return;
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-    const rect = canvas.getBoundingClientRect();
-    const clientX = e.clientX || (e.touches && e.touches[0].clientX);
-    const clientY = e.clientY || (e.touches && e.touches[0].clientY);
-    
-    const x = clientX - rect.left;
-    const y = clientY - rect.top;
-
-    ctx.strokeStyle = colors[colorIdx] === 'rainbow' ? `hsl(${hue}, 100%, 50%)` : colors[colorIdx];
-    ctx.lineWidth = 5;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-
-    ctx.lineTo(x, y);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-  };
-
-  const startDrawing = (e) => {
-    setDrawing(true);
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-    const rect = canvas.getBoundingClientRect();
-    const clientX = e.clientX || (e.touches && e.touches[0].clientX);
-    const clientY = e.clientY || (e.touches && e.touches[0].clientY);
-    ctx.beginPath();
-    ctx.moveTo(clientX - rect.left, clientY - rect.top);
-  };
-
-  return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white font-['Montserrat'] overflow-hidden relative">
-      {/* Анимированный снег на фоне */}
-      <div className="fixed inset-0 pointer-events-none z-0 opacity-30">
-        {[...Array(40)].map((_, i) => (
-          <div 
-            key={i}
-            className="absolute bg-white rounded-full animate-snow"
-            style={{
-              left: `${Math.random() * 100}%`,
-              width: `${Math.random() * 3 + 1}px`,
-              height: `${Math.random() * 3 + 1}px`,
-              animationDuration: `${Math.random() * 10 + 7}s`,
-              animationDelay: `${Math.random() * 5}s`,
-              top: '-5%'
-            }}
-          />
-        ))}
-      </div>
-
-      {/* Кнопка Меню */}
-      <button 
-        onClick={() => setMenuOpen(!menuOpen)}
-        className="fixed top-6 right-6 z-50 p-4 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl hover:bg-white/10 transition-all active:scale-90"
-      >
-        <div className="w-6 h-5 flex flex-col justify-between items-end">
-          <span className={`h-0.5 bg-white transition-all ${menuOpen ? 'w-6 rotate-45 translate-y-2' : 'w-6'}`} />
-          <span className={`h-0.5 bg-white transition-all ${menuOpen ? 'opacity-0' : 'w-4'}`} />
-          <span className={`h-0.5 bg-white transition-all ${menuOpen ? 'w-6 -rotate-45 -translate-y-2' : 'w-5'}`} />
-        </div>
-      </button>
-
-      {/* Навигационная панель */}
-      <div className={`fixed inset-0 z-40 bg-black/95 backdrop-blur-3xl transition-all duration-500 flex flex-col items-center justify-center gap-10 ${menuOpen ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0 pointer-events-none'}`}>
-        {['info', 'draw', 'ask'].map((page) => (
-          <button
-            key={page}
-            onClick={() => { setCurrentPage(page); setMenuOpen(false); }}
-            className={`text-4xl font-bold transition-all ${currentPage === page ? 'text-cyan-400 scale-110' : 'text-white/40 hover:text-white hover:scale-105'}`}
-          >
-            {page === 'info' ? 'Профиль' : page === 'draw' ? 'Холст' : 'Вопросы'}
-          </button>
-        ))}
-      </div>
-
-      {/* Основной контент */}
-      <main className="relative z-10 h-screen w-full flex items-center justify-center p-6">
-        
-        {currentPage === 'info' && (
-          <div className="bg-white/[0.03] backdrop-blur-2xl border border-white/10 p-10 rounded-[2.5rem] max-w-md w-full shadow-2xl animate-in">
-            <h1 className="text-3xl font-bold mb-2 tracking-tight">lie2srvv</h1>
-            <p className="text-white/60 mb-8 font-medium">@lie2srvv</p>
-            
-            <div className="space-y-6">
-              <div className="flex flex-col gap-1">
-                <span className="text-[10px] uppercase tracking-[0.2em] text-white/30 font-bold">Личное</span>
-                <p className="text-white/90">Александр, 16 лет</p>
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <span className="text-[10px] uppercase tracking-[0.2em] text-white/30 font-bold">Локация</span>
-                <p className="text-white/90">Россия, г. <CityGenerator /></p>
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <span className="text-[10px] uppercase tracking-[0.2em] text-white/30 font-bold">О себе</span>
-                <p className="text-white/90 text-sm leading-relaxed">Программирую, учусь в 11 классе, люблю логику и эстетику 🌸</p>
-              </div>
-            </div>
-
-            <div className="h-px bg-white/10 my-8" />
-            
-            <div className="flex flex-col gap-4">
-              <a href="https://t.me/lie2survive" target="_blank" className="flex items-center justify-between group p-4 bg-white/5 rounded-2xl border border-white/5 hover:border-cyan-500/30 transition-all">
-                <span className="font-bold">Телеграм</span>
-                <span className="text-cyan-400 group-hover:translate-x-1 transition-transform">→</span>
-              </a>
-              <a href="https://github.com/lie2srvv" target="_blank" className="flex items-center justify-between group p-4 bg-white/5 rounded-2xl border border-white/5 hover:border-cyan-500/30 transition-all">
-                <span className="font-bold">Github</span>
-                <span className="text-cyan-400 group-hover:translate-x-1 transition-transform">→</span>
-              </a>
-            </div>
-          </div>
-        )}
-
-        {currentPage === 'draw' && (
-          <div className="absolute inset-0 touch-none">
-            <canvas 
-              ref={canvasRef}
-              className="w-full h-full"
-              onMouseDown={startDrawing}
-              onMouseUp={() => setDrawing(false)}
-              onMouseMove={draw}
-              onTouchStart={(e) => startDrawing(e.touches[0])}
-              onTouchEnd={() => setDrawing(false)}
-              onTouchMove={(e) => draw(e.touches[0])}
-            />
-            <div className="fixed bottom-12 left-1/2 -translate-x-1/2 flex items-center gap-6 bg-black/80 backdrop-blur-2xl p-4 px-8 rounded-full border border-white/10 shadow-2xl animate-in">
-              <button 
-                onClick={() => setColorIdx((colorIdx + 1) % colors.length)}
-                className="w-12 h-12 rounded-full border-4 border-white/20 transition-transform active:scale-90 shadow-inner"
-                style={{ background: colors[colorIdx] === 'rainbow' ? `hsl(${hue}, 100%, 50%)` : colors[colorIdx] }}
-              />
-              <button 
-                onClick={() => {
-                  const ctx = canvasRef.current.getContext('2d');
-                  ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-                }}
-                className="bg-white/10 hover:bg-white/20 px-6 py-3 rounded-full text-sm font-black uppercase tracking-widest transition-all"
-              >
-                Clear
-              </button>
-            </div>
-          </div>
-        )}
-
-        {currentPage === 'ask' && (
-          <div className="bg-white/[0.03] backdrop-blur-2xl border border-white/10 p-10 rounded-[2.5rem] max-w-md w-full shadow-2xl animate-in">
-            {!isAdminAuthenticated ? (
-              <>
-                <h2 className="text-2xl font-bold mb-6">Анонимный вопрос</h2>
-                <textarea
-                  value={question}
-                  onChange={(e) => setQuestion(e.target.value)}
-                  placeholder="Твое сообщение..."
-                  className="w-full bg-white/5 border border-white/10 rounded-[1.5rem] p-5 min-h-[140px] focus:outline-none focus:border-cyan-500/50 transition-all resize-none mb-6 placeholder:text-white/20"
-                />
-                <button
-                  onClick={sendQuestion}
-                  disabled={isSending || !question.trim()}
-                  className="w-full bg-white text-black font-black py-5 rounded-[1.5rem] transition-all active:scale-95 disabled:opacity-20 uppercase tracking-widest"
-                >
-                  {isSending ? '...' : 'Отправить'}
-                </button>
-                
-                <div className="mt-10 flex flex-col items-center">
-                  <button 
-                    onClick={() => setShowAdmin(!showAdmin)}
-                    className="text-[10px] text-white/10 hover:text-white/40 transition-colors uppercase tracking-[0.3em]"
-                  >
-                    Admin Access
-                  </button>
-                  {showAdmin && (
-                    <div className="mt-4 flex gap-2 w-full animate-in">
-                      <input 
-                        type="password" 
-                        value={adminPass}
-                        onChange={(e) => setAdminPass(e.target.value)}
-                        placeholder="Pass"
-                        className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 text-sm focus:outline-none"
-                      />
-                      <button onClick={handleAdminAuth} className="bg-cyan-500 text-black px-4 py-2 rounded-xl text-xs font-bold">OK</button>
-                    </div>
-                  )}
-                </div>
-              </>
-            ) : (
-              <div className="h-[450px] flex flex-col">
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="font-bold text-xl">Inbox ({questionsList.length})</h2>
-                  <button onClick={() => setIsAdminAuthenticated(false)} className="text-xs text-cyan-400 font-bold uppercase tracking-widest">Logout</button>
-                </div>
-                <div className="flex-1 overflow-y-auto pr-2 space-y-4 custom-scroll">
-                  {questionsList.map(q => (
-                    <div key={q.id} className="bg-white/5 border border-white/5 p-5 rounded-2xl border-l-2 border-l-cyan-500/50">
-                      <p className="text-sm leading-relaxed text-white/90">{q.text}</p>
-                      <p className="text-[10px] text-white/20 mt-3 font-mono">
-                        {q.createdAt?.toDate().toLocaleString() || 'Just now'}
-                      </p>
-                    </div>
-                  ))}
-                  {questionsList.length === 0 && (
-                    <div className="h-full flex flex-col items-center justify-center opacity-20">
-                      <p>Пусто</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </main>
-
-      <style dangerouslySetInnerHTML={{ __html: `
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>lie2srvv</title>
+    <!-- Шрифты и иконки -->
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&display=swap" rel="stylesheet">
+    <!-- Tailwind для стилей -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React зависимости -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        body { background-color: #0a0a0a; margin: 0; font-family: 'Montserrat', sans-serif; color: white; overflow: hidden; }
         @keyframes snow {
-          0% { transform: translateY(0) rotate(0deg); }
-          100% { transform: translateY(110vh) rotate(360deg); }
+            0% { transform: translateY(-10vh) rotate(0deg); }
+            100% { transform: translateY(110vh) rotate(360deg); }
         }
-        .animate-snow { animation-name: snow; animation-iteration-count: infinite; animation-timing-function: linear; }
-        .animate-in { animation: in 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-        @keyframes in {
-          from { opacity: 0; transform: translateY(30px) scale(0.95); }
-          to { opacity: 1; transform: translateY(0) scale(1); }
+        .animate-snow { animation: snow linear infinite; }
+        .animate-in { animation: fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px) scale(0.95); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
         }
         .custom-scroll::-webkit-scrollbar { width: 4px; }
         .custom-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
-      `}} />
-    </div>
-  );
-};
+        canvas { touch-action: none; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
 
-const CityGenerator = () => {
-  const [city, setCity] = useState('');
-  useEffect(() => {
-    const letters = "абвгдеёжзийклмнопрстуфхцчшщъыьэюя";
-    const interval = setInterval(() => {
-      let c = letters[Math.floor(Math.random() * letters.length)].toUpperCase();
-      for (let i = 0; i < 5; i++) c += letters[Math.floor(Math.random() * letters.length)];
-      setCity(c);
-    }, 50);
-    return () => clearInterval(interval);
-  }, []);
-  return <span className="italic font-bold text-white/40">{city}</span>;
-};
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
+        import { getFirestore, collection, addDoc, onSnapshot, Timestamp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
 
-export default App;                 
+        window.fb = { initializeApp, getFirestore, collection, addDoc, onSnapshot, Timestamp, getAuth, signInAnonymously, onAuthStateChanged };
+    </script>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        const App = () => {
+            const [db, setDb] = useState(null);
+            const [auth, setAuth] = useState(null);
+            const [user, setUser] = useState(null);
+            const [currentPage, setCurrentPage] = useState('info');
+            const [menuOpen, setMenuOpen] = useState(false);
+            const [question, setQuestion] = useState('');
+            const [questionsList, setQuestionsList] = useState([]);
+            const [isSending, setIsSending] = useState(false);
+            const [showAdmin, setShowAdmin] = useState(false);
+            const [adminPass, setAdminPass] = useState('');
+            const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
+
+            const canvasRef = useRef(null);
+            const [drawing, setDrawing] = useState(false);
+            const [colorIdx, setColorIdx] = useState(0);
+            const colors = ["#FFFFFF", "#FF0000", "#FF7F00", "#FFFF00", "#00FF00", "#0000FF", "#4B0082", "#9400D3", "rainbow"];
+            const [hue, setHue] = useState(0);
+
+            const appId = 'lie2srvv-app';
+
+            useEffect(() => {
+                const interval = setInterval(() => {
+                    const checkFb = setInterval(() => {
+                        if (window.fb) {
+                            clearInterval(checkFb);
+                            const config = JSON.parse('{"apiKey":"","authDomain":"","projectId":"","storageBucket":"","messagingSenderId":"","appId":""}'); // Пустые значения, так как ключ подставится средой
+                            // ВАЖНО: На GitHub Pages нужно будет вручную вставить конфиг Firebase, если ты не используешь встроенную среду
+                            const firebaseConfig = window.__firebase_config ? JSON.parse(window.__firebase_config) : config;
+                            
+                            const app = window.fb.initializeApp(firebaseConfig);
+                            const _db = window.fb.getFirestore(app);
+                            const _auth = window.fb.getAuth(app);
+                            
+                            setDb(_db);
+                            setAuth(_auth);
+
+                            window.fb.signInAnonymously(_auth).catch(console.error);
+                            window.fb.onAuthStateChanged(_auth, setUser);
+                        }
+                    }, 100);
+                }, 100);
+                return () => clearInterval(interval);
+            }, []);
+
+            useEffect(() => {
+                if (!db || !user || !isAdminAuthenticated) return;
+                const qCol = window.fb.collection(db, 'artifacts', appId, 'public', 'data', 'questions');
+                return window.fb.onSnapshot(qCol, (snapshot) => {
+                    const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    setQuestionsList(data.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)));
+                });
+            }, [db, user, isAdminAuthenticated]);
+
+            useEffect(() => {
+                let frame = requestAnimationFrame(function anim() {
+                    setHue(h => (h + 2) % 360);
+                    frame = requestAnimationFrame(anim);
+                });
+                return () => cancelAnimationFrame(frame);
+            }, []);
+
+            const sendQuestion = async () => {
+                if (!question.trim() || isSending || !db) return;
+                setIsSending(true);
+                try {
+                    await window.fb.addDoc(window.fb.collection(db, 'artifacts', appId, 'public', 'data', 'questions'), {
+                        text: question,
+                        createdAt: window.fb.Timestamp.now(),
+                        userId: user?.uid || 'anon'
+                    });
+                    setQuestion('');
+                    alert('Отправлено!');
+                } catch (e) {
+                    alert('Ошибка');
+                } finally {
+                    setIsSending(false);
+                }
+            };
+
+            const startDrawing = (e) => {
+                setDrawing(true);
+                const ctx = canvasRef.current.getContext('2d');
+                const rect = canvasRef.current.getBoundingClientRect();
+                const x = (e.clientX || e.touches[0].clientX) - rect.left;
+                const y = (e.clientY || e.touches[0].clientY) - rect.top;
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+            };
+
+            const draw = (e) => {
+                if (!drawing) return;
+                const ctx = canvasRef.current.getContext('2d');
+                const rect = canvasRef.current.getBoundingClientRect();
+                const x = (e.clientX || (e.touches && e.touches[0].clientX)) - rect.left;
+                const y = (e.clientY || (e.touches && e.touches[0].clientY)) - rect.top;
+
+                ctx.strokeStyle = colors[colorIdx] === 'rainbow' ? `hsl(${hue}, 100%, 50%)` : colors[colorIdx];
+                ctx.lineWidth = 5;
+                ctx.lineCap = 'round';
+                ctx.lineTo(x, y);
+                ctx.stroke();
+            };
+
+            const CityGenerator = () => {
+                const [cityName, setCityName] = useState('');
+                useEffect(() => {
+                    const l = "абвгдеёжзийклмнопрстуфхцчшщъыьэюя";
+                    const i = setInterval(() => {
+                        let c = l[Math.floor(Math.random()*l.length)].toUpperCase();
+                        for(let j=0; j<5; j++) c += l[Math.floor(Math.random()*l.length)];
+                        setCityName(c);
+                    }, 50);
+                    return () => clearInterval(i);
+                }, []);
+                return <span className="italic font-bold text-white/30">{cityName}</span>;
+            };
+
+            return (
+                <div className="h-screen w-screen relative overflow-hidden">
+                    {/* Снег */}
+                    <div className="fixed inset-0 pointer-events-none z-0 opacity-20">
+                        {[...Array(30)].map((_, i) => (
+                            <div key={i} className="absolute bg-white rounded-full animate-snow" style={{
+                                left: `${Math.random()*100}%`, width: '2px', height: '2px',
+                                animationDuration: `${Math.random()*10+5}s`, top: '-5%'
+                            }} />
+                        ))}
+                    </div>
+
+                    {/* Меню */}
+                    <button onClick={() => setMenuOpen(!menuOpen)} className="fixed top-6 right-6 z-50 p-4 bg-white/5 backdrop-blur-md rounded-2xl border border-white/10">
+                        <div className="w-6 h-5 flex flex-col justify-between items-end">
+                            <span className={`h-0.5 bg-white transition-all ${menuOpen ? 'w-6 rotate-45 translate-y-2' : 'w-6'}`} />
+                            <span className={`h-0.5 bg-white transition-all ${menuOpen ? 'opacity-0' : 'w-4'}`} />
+                            <span className={`h-0.5 bg-white transition-all ${menuOpen ? 'w-6 -rotate-45 -translate-y-2' : 'w-5'}`} />
+                        </div>
+                    </button>
+
+                    <div className={`fixed inset-0 z-40 bg-black/95 backdrop-blur-xl transition-all duration-500 flex flex-col items-center justify-center gap-10 ${menuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+                        {['info', 'draw', 'ask'].map(p => (
+                            <button key={p} onClick={() => {setCurrentPage(p); setMenuOpen(false)}} className={`text-4xl font-bold ${currentPage === p ? 'text-cyan-400' : 'text-white/30'}`}>
+                                {p === 'info' ? 'Профиль' : p === 'draw' ? 'Холст' : 'Вопросы'}
+                            </button>
+                        ))}
+                    </div>
+
+                    <main className="h-full w-full flex items-center justify-center p-6 relative z-10">
+                        {currentPage === 'info' && (
+                            <div className="bg-white/5 backdrop-blur-2xl border border-white/10 p-10 rounded-[2.5rem] max-w-md w-full animate-in">
+                                <h1 className="text-3xl font-bold">lie2srvv</h1>
+                                <p className="text-white/40 mb-8">@lie2srvv</p>
+                                <div className="space-y-4 text-sm">
+                                    <p>Александр, 16 лет</p>
+                                    <p>Россия, г. <CityGenerator /></p>
+                                    <p className="text-white/60">Программирую, 11 класс 🌸</p>
+                                </div>
+                                <div className="h-px bg-white/10 my-8" />
+                                <div className="flex flex-col gap-3">
+                                    <a href="https://t.me/lie2survive" target="_blank" className="p-4 bg-white/5 rounded-2xl border border-white/5 flex justify-between hover:border-cyan-500/50 transition-all">
+                                        <span>Телеграм</span><span>→</span>
+                                    </a>
+                                    <a href="https://github.com/lie2srvv" target="_blank" className="p-4 bg-white/5 rounded-2xl border border-white/5 flex justify-between hover:border-cyan-500/50 transition-all">
+                                        <span>Github</span><span>→</span>
+                                    </a>
+                                </div>
+                            </div>
+                        )}
+
+                        {currentPage === 'draw' && (
+                            <div className="absolute inset-0">
+                                <canvas ref={canvasRef} className="w-full h-full" width={window.innerWidth} height={window.innerHeight}
+                                    onMouseDown={startDrawing} onMouseMove={draw} onMouseUp={() => setDrawing(false)}
+                                    onTouchStart={(e) => startDrawing(e.touches[0])} onTouchMove={(e) => draw(e.touches[0])} onTouchEnd={() => setDrawing(false)}
+                                />
+                                <div className="fixed bottom-10 left-1/2 -translate-x-1/2 flex items-center gap-6 bg-black/80 p-4 px-8 rounded-full border border-white/10">
+                                    <button onClick={() => setColorIdx((colorIdx+1)%colors.length)} className="w-10 h-10 rounded-full border-2 border-white/20" 
+                                        style={{background: colors[colorIdx] === 'rainbow' ? `hsl(${hue},100%,50%)` : colors[colorIdx]}} />
+                                    <button onClick={() => canvasRef.current.getContext('2d').clearRect(0,0,9999,9999)} className="text-xs font-bold uppercase tracking-widest">Clear</button>
+                                </div>
+                            </div>
+                        )}
+
+                        {currentPage === 'ask' && (
+                            <div className="bg-white/5 backdrop-blur-2xl border border-white/10 p-10 rounded-[2.5rem] max-w-md w-full animate-in">
+                                {!isAdminAuthenticated ? (
+                                    <>
+                                        <h2 className="text-xl font-bold mb-6">Анонимный вопрос</h2>
+                                        <textarea value={question} onChange={e => setQuestion(e.target.value)} placeholder="Напиши что-нибудь..." className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 min-h-[150px] focus:outline-none focus:border-cyan-500/50 transition-all resize-none mb-6" />
+                                        <button onClick={sendQuestion} disabled={isSending || !question.trim()} className="w-full bg-white text-black font-bold py-5 rounded-2xl active:scale-95 disabled:opacity-20 uppercase tracking-widest">Отправить</button>
+                                        <button onClick={() => setShowAdmin(!showAdmin)} className="w-full mt-10 text-[10px] text-white/10 uppercase tracking-widest">Admin</button>
+                                        {showAdmin && (
+                                            <div className="mt-4 flex gap-2">
+                                                <input type="password" value={adminPass} onChange={e => setAdminPass(e.target.value)} className="bg-white/5 border border-white/10 rounded-xl px-4 flex-1 text-sm outline-none" />
+                                                <button onClick={() => adminPass === 'Lie2Admin' ? setIsAdminAuthenticated(true) : alert('!')} className="bg-cyan-500 text-black px-4 py-2 rounded-xl text-xs font-bold">OK</button>
+                                            </div>
+                                        )}
+                                    </>
+                                ) : (
+                                    <div className="h-[400px] flex flex-col">
+                                        <div className="flex justify-between items-center mb-6">
+                                            <h2 className="font-bold">Вопросы ({questionsList.length})</h2>
+                                            <button onClick={() => setIsAdminAuthenticated(false)} className="text-xs text-cyan-400 font-bold">Выйти</button>
+                                        </div>
+                                        <div className="flex-1 overflow-y-auto space-y-4 custom-scroll pr-2">
+                                            {questionsList.map(q => (
+                                                <div key={q.id} className="bg-white/5 p-4 rounded-xl border-l-2 border-cyan-500">
+                                                    <p className="text-sm">{q.text}</p>
+                                                    <p className="text-[10px] opacity-30 mt-2">{q.createdAt?.toDate().toLocaleString()}</p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </main>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
