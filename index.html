@@ -12,23 +12,37 @@
     <style>
         :root {
             --bg-deep: #080808;
-            --bg-card: #121212;
             --text-main: #e8e8e8;
-            --text-muted: #666666;
         }
         
-        body { 
+        body, html { 
             background-color: var(--bg-deep); 
             margin: 0; 
+            padding: 0;
+            width: 100%;
+            height: 100%;
             font-family: 'Montserrat', sans-serif; 
             color: var(--text-main); 
             overflow: hidden; 
             touch-action: none; 
         }
 
-        /* Слои для разделения снега и интерфейса */
-        #snow-layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
-        #app-ui { position: relative; z-index: 10; }
+        #snow-layer { 
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100vw; 
+            height: 100vh; 
+            pointer-events: none; 
+            z-index: 1; 
+        }
+
+        #root { 
+            position: relative; 
+            z-index: 10; 
+            width: 100%;
+            height: 100%;
+        }
         
         .animate-fadeUp { animation: fadeUp 0.8s cubic-bezier(0.2, 1, 0.3, 1) forwards; }
         @keyframes fadeUp {
@@ -36,12 +50,27 @@
             to { opacity: 1; transform: translateY(0); }
         }
         
-        #canvas-drawing { position: absolute; top: 0; left: 0; width: 100%; height: 100%; cursor: crosshair; }
+        canvas#canvas-drawing { 
+            display: block;
+            touch-action: none; 
+            cursor: crosshair; 
+        }
+
+        .color-dot { 
+            width: 26px; 
+            height: 26px; 
+            border-radius: 50%; 
+            border: 1px solid rgba(255,255,255,0.1); 
+            transition: all 0.3s ease; 
+        }
+        .color-dot.active { 
+            transform: scale(1.3); 
+            border-color: #fff; 
+            box-shadow: 0 0 15px rgba(255,255,255,0.2); 
+        }
+
         .custom-scroll::-webkit-scrollbar { width: 4px; }
-        .custom-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.05); border-radius: 10px; }
-        
-        .color-dot { width: 26px; height: 26px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.1); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
-        .color-dot.active { transform: scale(1.3); border-color: #fff; box-shadow: 0 0 15px rgba(255,255,255,0.15); }
+        .custom-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
     </style>
 </head>
 <body>
@@ -58,9 +87,10 @@
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
 
-        // --- Система пушистого снега на JS (Canvas) ---
-        const initSnow = () => {
+        // --- Система пушистого снега ---
+        const startSnowAnimation = () => {
             const canvas = document.getElementById('snow-layer');
+            if (!canvas) return;
             const ctx = canvas.getContext('2d');
             let width, height, snowflakes = [];
 
@@ -76,19 +106,17 @@
                 reset() {
                     this.x = Math.random() * width;
                     this.y = Math.random() * -height;
-                    this.size = Math.random() * 5 + 3; // Крупный размер
-                    this.speed = Math.random() * 0.5 + 0.2; // Очень плавно
-                    this.velX = 0;
+                    this.size = Math.random() * 4 + 2; 
+                    this.speed = Math.random() * 0.4 + 0.2; 
                     this.step = 0;
                     this.stepSize = Math.random() * 0.02 + 0.01;
-                    this.swing = Math.random() * 1.5 + 0.5; // Раскачивание
-                    this.opacity = Math.random() * 0.4 + 0.1;
+                    this.swing = Math.random() * 2 + 1; 
+                    this.opacity = Math.random() * 0.5 + 0.2;
                 }
                 update() {
                     this.step += this.stepSize;
-                    this.velX = Math.sin(this.step) * this.swing;
+                    this.x += Math.sin(this.step) * this.swing * 0.5;
                     this.y += this.speed;
-                    this.x += this.velX;
                     if (this.y > height) this.reset();
                 }
                 draw() {
@@ -102,14 +130,12 @@
                 }
             }
 
-            for(let i = 0; i < 60; i++) snowflakes.push(new Snowflake());
-
+            for(let i = 0; i < 70; i++) snowflakes.push(new Snowflake());
             const loop = () => {
                 ctx.clearRect(0, 0, width, height);
                 snowflakes.forEach(s => { s.update(); s.draw(); });
                 requestAnimationFrame(loop);
             };
-
             window.addEventListener('resize', resize);
             resize();
             loop();
@@ -134,72 +160,49 @@
             const colors = ["#FFFFFF", "#FF3B30", "#FF9500", "#FFCC00", "#4CD964", "#007AFF", "#5856D6", "#AF52DE", "rainbow"];
             const [hue, setHue] = useState(0);
 
-            const appId = 'lie2srvv-prod';
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'lie2srvv-final';
 
             useEffect(() => {
-                initSnow();
-                const initFirebase = async () => {
-                    if (window.fb) {
-                        const firebaseConfig = JSON.parse(window.__firebase_config);
-                        const app = window.fb.initializeApp(firebaseConfig);
-                        const _db = window.fb.getFirestore(app);
-                        const _auth = window.fb.getAuth(app);
-                        setDb(_db);
-                        const result = await window.fb.signInAnonymously(_auth);
-                        setUser(result.user);
+                startSnowAnimation();
+                const initFb = async () => {
+                    if (window.fb && window.__firebase_config) {
+                        try {
+                            const config = JSON.parse(window.__firebase_config);
+                            const app = window.fb.initializeApp(config);
+                            const _db = window.fb.getFirestore(app);
+                            const _auth = window.fb.getAuth(app);
+                            setDb(_db);
+                            const res = await window.fb.signInAnonymously(_auth);
+                            setUser(res.user);
+                        } catch(e) { console.warn("Firebase Init Silent Fail"); }
                     }
                 };
-                initFirebase();
+                initFb();
             }, []);
 
             useEffect(() => {
                 if (!db || !user || !isAdminAuthenticated) return;
                 const qCol = window.fb.collection(db, 'artifacts', appId, 'public', 'data', 'questions');
-                const unsubscribe = window.fb.onSnapshot(qCol, (snapshot) => {
-                    const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                return window.fb.onSnapshot(qCol, (snap) => {
+                    const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                     setQuestionsList(data.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)));
                 });
-                return () => unsubscribe();
             }, [db, user, isAdminAuthenticated]);
 
-            const setupDrawingCanvas = () => {
+            const setupCanvas = () => {
                 const canvas = canvasRef.current;
                 if (!canvas) return;
                 const dpr = window.devicePixelRatio || 1;
                 const rect = canvas.getBoundingClientRect();
                 canvas.width = rect.width * dpr;
                 canvas.height = rect.height * dpr;
-                const ctx = canvas.getContext('2d');
-                ctx.scale(dpr, dpr);
-            };
-
-            const drawAll = () => {
-                const canvas = canvasRef.current;
-                if (!canvas) return;
-                const ctx = canvas.getContext('2d');
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                
-                [...paths, currentPathRef.current].filter(Boolean).forEach(path => {
-                    if (!path.points || path.points.length < 1) return;
-                    ctx.beginPath();
-                    ctx.lineWidth = 2.5;
-                    ctx.lineCap = 'round';
-                    ctx.lineJoin = 'round';
-                    ctx.strokeStyle = path.color === 'rainbow' ? `hsl(${path.hue || 0}, 100%, 75%)` : path.color;
-                    ctx.moveTo(path.points[0].x, path.points[0].y);
-                    for (let i = 1; i < path.points.length; i++) {
-                        ctx.lineTo(path.points[i].x, path.points[i].y);
-                    }
-                    ctx.stroke();
-                });
+                canvas.getContext('2d').scale(dpr, dpr);
             };
 
             useEffect(() => {
                 if (currentPage === 'draw') {
-                    setupDrawingCanvas();
-                    window.addEventListener('resize', setupDrawingCanvas);
+                    setTimeout(setupCanvas, 50);
                 }
-                return () => window.removeEventListener('resize', setupDrawingCanvas);
             }, [currentPage]);
 
             useEffect(() => {
@@ -207,12 +210,26 @@
                 const chars = "абвгдеёжзийклмнопрстуфхцчшщъыьэюя";
                 const animate = () => {
                     setHue(h => (h + 1) % 360);
-                    if (Math.random() > 0.97) {
+                    if (Math.random() > 0.98) {
                         let res = "";
                         for(let i=0; i<6; i++) res += chars[Math.floor(Math.random()*chars.length)];
                         setCityNoise(res.toUpperCase());
                     }
-                    if (currentPage === 'draw') drawAll();
+                    if (currentPage === 'draw' && canvasRef.current) {
+                        const ctx = canvasRef.current.getContext('2d');
+                        ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+                        [...paths, currentPathRef.current].filter(Boolean).forEach(p => {
+                            if (!p.points?.length) return;
+                            ctx.beginPath();
+                            ctx.lineWidth = 3;
+                            ctx.lineCap = 'round';
+                            ctx.lineJoin = 'round';
+                            ctx.strokeStyle = p.color === 'rainbow' ? `hsl(${p.hue}, 100%, 75%)` : p.color;
+                            ctx.moveTo(p.points[0].x, p.points[0].y);
+                            p.points.forEach(pt => ctx.lineTo(pt.x, pt.y));
+                            ctx.stroke();
+                        });
+                    }
                     frame = requestAnimationFrame(animate);
                 };
                 frame = requestAnimationFrame(animate);
@@ -220,15 +237,14 @@
             }, [hue, paths, currentPage]);
 
             const getPos = (e) => {
-                const canvas = canvasRef.current;
-                const rect = canvas.getBoundingClientRect();
-                const clientX = (e.clientX || (e.touches && e.touches[0].clientX)) - rect.left;
-                const clientY = (e.clientY || (e.touches && e.touches[0].clientY)) - rect.top;
-                return { x: clientX, y: clientY };
+                const rect = canvasRef.current.getBoundingClientRect();
+                const x = (e.clientX || (e.touches && e.touches[0].clientX)) - rect.left;
+                const y = (e.clientY || (e.touches && e.touches[0].clientY)) - rect.top;
+                return { x, y };
             };
 
-            const sendMsg = async () => {
-                if (!question.trim() || isSending || !db || !user) return;
+            const send = async () => {
+                if (!question.trim() || isSending || !db) return;
                 setIsSending(true);
                 try {
                     await window.fb.addDoc(window.fb.collection(db, 'artifacts', appId, 'public', 'data', 'questions'), {
@@ -238,14 +254,12 @@
                     setQuestion('');
                     setSendSuccess(true);
                     setTimeout(() => setSendSuccess(false), 3000);
-                } catch (e) { console.error(e); }
-                finally { setIsSending(false); }
+                } catch(e) {} finally { setIsSending(false); }
             };
 
             return (
-                <div id="app-ui" className="min-h-screen w-full flex items-center justify-center">
-                    {/* Кнопка меню */}
-                    <button onClick={() => setMenuOpen(!menuOpen)} className="fixed top-8 right-8 z-50 p-4 bg-[#141414]/90 backdrop-blur-2xl border border-white/5 rounded-2xl hover:bg-[#1a1a1a] transition-all active:scale-95 shadow-2xl">
+                <div className="w-full h-full flex items-center justify-center">
+                    <button onClick={() => setMenuOpen(!menuOpen)} className="fixed top-8 right-8 z-[100] p-4 bg-[#111]/80 backdrop-blur-xl border border-white/5 rounded-2xl active:scale-95 shadow-2xl">
                         <div className="w-6 h-5 flex flex-col justify-between items-end">
                             <span className={`h-0.5 bg-white transition-all ${menuOpen ? 'w-6 rotate-45 translate-y-2' : 'w-6'}`} />
                             <span className={`h-0.5 bg-white transition-all ${menuOpen ? 'opacity-0' : 'w-4'}`} />
@@ -253,101 +267,83 @@
                         </div>
                     </button>
 
-                    {/* Навигация */}
-                    <nav className={`fixed inset-0 z-40 bg-[#080808]/fb transition-all duration-700 flex flex-col items-center justify-center gap-10 ${menuOpen ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-full pointer-events-none'}`}>
-                        {['info', 'draw', 'ask'].map((p) => (
-                            <button key={p} onClick={() => {setCurrentPage(p); setMenuOpen(false);}} className={`text-3xl font-bold uppercase tracking-[0.25em] transition-all ${currentPage === p ? 'text-white' : 'text-[#333] hover:text-[#555]'}`}>
-                                {p === 'info' ? 'Profile' : p === 'draw' ? 'Canvas' : 'Contact'}
+                    <nav className={`fixed inset-0 z-50 bg-[#080808]/95 backdrop-blur-3xl transition-all duration-500 flex flex-col items-center justify-center gap-10 ${menuOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+                        {['info', 'draw', 'ask'].map(p => (
+                            <button key={p} onClick={() => {setCurrentPage(p); setMenuOpen(false);}} className={`text-3xl font-bold uppercase tracking-widest ${currentPage === p ? 'text-white' : 'text-[#222]'}`}>
+                                {p === 'info' ? 'Info' : p === 'draw' ? 'Draw' : 'Ask'}
                             </button>
                         ))}
                     </nav>
 
-                    {/* Контент */}
-                    <main className="w-full h-full flex items-center justify-center">
+                    <main className="w-full h-full flex items-center justify-center p-6">
                         {currentPage === 'info' && (
-                            <div className="bg-[#111] border border-white/[0.04] p-12 rounded-[3rem] max-w-md w-full shadow-2xl animate-fadeUp mx-6">
-                                <div className="flex justify-between items-start mb-12">
-                                    <div>
-                                        <h1 className="text-3xl font-bold tracking-tight mb-2">lie2srvv</h1>
-                                        <div className="h-1 w-8 bg-[#333] rounded-full"></div>
+                            <div className="bg-[#111] border border-white/5 p-12 rounded-[2.5rem] max-w-md w-full animate-fadeUp">
+                                <h1 className="text-3xl font-bold mb-8">lie2srvv</h1>
+                                <div className="space-y-6 mb-10">
+                                    <div className="space-y-1">
+                                        <p className="text-[10px] uppercase tracking-widest text-[#444] font-bold">О себе</p>
+                                        <p className="text-sm text-[#888]">Александр, 16 лет. 11 класс. Веб-разработчик. Создаю минималистичные и плавные сайты.</p>
                                     </div>
-                                    <span className="text-[10px] text-[#444] font-mono tracking-tighter uppercase">ID: 552482</span>
-                                </div>
-                                
-                                <div className="space-y-8 mb-12">
-                                    <div className="space-y-2">
-                                        <p className="text-[9px] uppercase tracking-[0.3em] text-[#444] font-bold">Био</p>
-                                        <p className="text-sm text-[#999] leading-relaxed">Александр. 16 y.o. Студент 11 класса. Создаю цифровой опыт через чистые интерфейсы и современные технологии.</p>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-8">
-                                        <div className="space-y-2">
-                                            <p className="text-[9px] uppercase tracking-[0.3em] text-[#444] font-bold">Город</p>
-                                            <p className="text-sm font-bold text-[#666]">{cityNoise}</p>
+                                    <div className="flex justify-between">
+                                        <div>
+                                            <p className="text-[10px] uppercase tracking-widest text-[#444] font-bold">Город</p>
+                                            <p className="text-sm text-[#666] font-bold">{cityNoise}</p>
                                         </div>
-                                        <div className="space-y-2">
-                                            <p className="text-[9px] uppercase tracking-[0.3em] text-[#444] font-bold">Стек</p>
-                                            <p className="text-sm font-bold text-[#666]">JS / React</p>
+                                        <div>
+                                            <p className="text-[10px] uppercase tracking-widest text-[#444] font-bold">Стек</p>
+                                            <p className="text-sm text-[#666] font-bold">React / JS</p>
                                         </div>
                                     </div>
                                 </div>
-
-                                <a href="https://t.me/lie2survive" target="_blank" className="flex items-center justify-center gap-3 p-5 bg-white/5 rounded-3xl border border-white/5 hover:bg-white/[0.08] transition-all group">
-                                    <span className="font-bold text-xs uppercase tracking-widest text-[#aaa]">Написать в TG</span>
-                                </a>
+                                <a href="https://t.me/lie2survive" target="_blank" className="block text-center p-4 bg-white/5 rounded-2xl border border-white/5 text-xs font-bold uppercase tracking-widest text-[#999] hover:bg-white/10 transition-all">Написать в TG</a>
                             </div>
                         )}
 
                         {currentPage === 'draw' && (
-                            <div className="absolute inset-0">
-                                <canvas ref={canvasRef} id="canvas-drawing"
-                                    onMouseDown={(e) => { const pos = getPos(e); currentPathRef.current = { color: colors[colorIdx], points: [pos], hue }; }}
-                                    onMouseMove={(e) => { if(currentPathRef.current) currentPathRef.current.points.push(getPos(e)); }}
+                            <div className="absolute inset-0 w-full h-full">
+                                <canvas ref={canvasRef} id="canvas-drawing" className="w-full h-full"
+                                    onMouseDown={e => currentPathRef.current = {color: colors[colorIdx], points: [getPos(e)], hue}}
+                                    onMouseMove={e => currentPathRef.current && currentPathRef.current.points.push(getPos(e))}
                                     onMouseUp={() => { if(currentPathRef.current) setPaths(p => [...p, currentPathRef.current]); currentPathRef.current = null; }}
-                                    onTouchStart={(e) => { const pos = getPos(e); currentPathRef.current = { color: colors[colorIdx], points: [pos], hue }; }}
-                                    onTouchMove={(e) => { if(currentPathRef.current) currentPathRef.current.points.push(getPos(e)); }}
+                                    onTouchStart={e => currentPathRef.current = {color: colors[colorIdx], points: [getPos(e)], hue}}
+                                    onTouchMove={e => currentPathRef.current && currentPathRef.current.points.push(getPos(e))}
                                     onTouchEnd={() => { if(currentPathRef.current) setPaths(p => [...p, currentPathRef.current]); currentPathRef.current = null; }}
                                 />
-                                <div className="fixed bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center gap-6 bg-[#111]/90 backdrop-blur-3xl p-6 px-10 rounded-[3rem] border border-white/5 shadow-2xl">
-                                    <div className="flex items-center gap-4">
-                                        {colors.map((c, idx) => (
-                                            <button key={idx} onClick={() => setColorIdx(idx)} className={`color-dot ${colorIdx === idx ? 'active' : ''}`} 
-                                                style={{background: c === 'rainbow' ? `linear-gradient(45deg, #ff3b30, #ffcc00, #4cd964, #007aff, #af52de)` : c}} />
+                                <div className="fixed bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-6 bg-[#111]/90 backdrop-blur-2xl p-6 rounded-[3rem] border border-white/5 shadow-2xl">
+                                    <div className="flex gap-3">
+                                        {colors.map((c, i) => (
+                                            <button key={i} onClick={() => setColorIdx(i)} className={`color-dot ${colorIdx === i ? 'active' : ''}`} 
+                                                style={{background: c === 'rainbow' ? 'linear-gradient(45deg, #ff3b30, #ffcc00, #4cd964, #007aff, #af52de)' : c}} />
                                         ))}
                                     </div>
-                                    <button onClick={() => setPaths([])} className="text-[10px] uppercase tracking-[0.2em] text-[#444] font-bold hover:text-white transition-colors">Очистить холст</button>
+                                    <button onClick={() => setPaths([])} className="text-[10px] font-bold text-[#444] uppercase tracking-widest">Clear</button>
                                 </div>
                             </div>
                         )}
 
                         {currentPage === 'ask' && (
-                            <div className="bg-[#111] border border-white/[0.04] p-12 rounded-[3rem] max-w-md w-full shadow-2xl animate-fadeUp mx-6">
+                            <div className="bg-[#111] border border-white/5 p-12 rounded-[2.5rem] max-w-md w-full animate-fadeUp text-center">
                                 {!isAdminAuthenticated ? (
                                     <>
-                                        <h2 className="text-xl font-bold mb-10 text-center uppercase tracking-[0.3em]">Inbox</h2>
-                                        <textarea value={question} onChange={e => setQuestion(e.target.value)} placeholder="Твое анонимное сообщение..." className="w-full bg-white/[0.02] border border-white/[0.04] rounded-3xl p-6 min-h-[180px] focus:outline-none focus:border-white/10 transition-all resize-none mb-8 text-sm text-[#888] placeholder:text-[#333]" />
-                                        
-                                        {sendSuccess && <div className="text-center text-[10px] text-white/40 uppercase font-bold tracking-widest mb-6">Сообщение улетело</div>}
-                                        
-                                        <button onClick={sendMsg} disabled={isSending || !question.trim()} className="w-full bg-[#eee] text-black font-bold py-5 rounded-3xl active:scale-95 disabled:opacity-10 uppercase tracking-[0.3em] text-[10px] shadow-2xl">
-                                            {isSending ? 'Отправка...' : 'Отправить'}
-                                        </button>
-                                        
-                                        <button onClick={() => { if(prompt('?') === 'Lie2Admin') setIsAdminAuthenticated(true); }} className="mt-12 block mx-auto text-[8px] text-[#222] uppercase tracking-[0.4em] hover:text-[#333]">Admin Panel</button>
+                                        <h2 className="text-xl font-bold mb-8 uppercase tracking-widest">Contact</h2>
+                                        <textarea value={question} onChange={e => setQuestion(e.target.value)} placeholder="Ваше сообщение..." className="w-full bg-white/[0.02] border border-white/5 rounded-2xl p-6 min-h-[180px] focus:outline-none focus:border-white/10 transition-all mb-6 text-sm text-[#888]" />
+                                        {sendSuccess && <p className="text-[10px] text-white/30 uppercase mb-4">Отправлено</p>}
+                                        <button onClick={send} disabled={isSending || !question.trim()} className="w-full bg-[#eee] text-black font-bold py-4 rounded-2xl active:scale-95 disabled:opacity-20 uppercase tracking-[0.2em] text-[10px]">Отправить</button>
+                                        <button onClick={() => { if(prompt('?') === 'Lie2Admin') setIsAdminAuthenticated(true); }} className="mt-10 block mx-auto text-[8px] text-[#222] uppercase tracking-[0.4em]">Admin</button>
                                     </>
                                 ) : (
-                                    <div className="h-[500px] flex flex-col">
-                                        <div className="flex justify-between items-center mb-10">
-                                            <h2 className="font-bold text-[10px] uppercase tracking-[0.3em] text-[#444]">Messages</h2>
-                                            <button onClick={() => setIsAdminAuthenticated(false)} className="text-[10px] text-white/10 uppercase hover:text-white">Exit</button>
+                                    <div className="h-[480px] flex flex-col text-left">
+                                        <div className="flex justify-between items-center mb-8">
+                                            <h2 className="text-[10px] uppercase tracking-widest text-[#444]">Inbox</h2>
+                                            <button onClick={() => setIsAdminAuthenticated(false)} className="text-[10px] text-white/10 uppercase">Exit</button>
                                         </div>
-                                        <div className="flex-1 overflow-y-auto space-y-6 custom-scroll pr-4">
+                                        <div className="flex-1 overflow-y-auto space-y-4 custom-scroll pr-3">
                                             {questionsList.map(q => (
-                                                <div key={q.id} className="bg-white/[0.02] p-6 rounded-[2rem] border border-white/[0.03]">
-                                                    <p className="text-sm leading-relaxed text-[#888]">{q.text}</p>
-                                                    <p className="text-[8px] text-[#222] mt-5 uppercase font-mono">{q.createdAt?.toDate().toLocaleString()}</p>
+                                                <div key={q.id} className="bg-white/5 p-5 rounded-2xl border border-white/5">
+                                                    <p className="text-sm text-[#888]">{q.text}</p>
+                                                    <p className="text-[8px] text-[#222] mt-3 font-mono">{q.createdAt?.toDate().toLocaleString()}</p>
                                                 </div>
                                             ))}
-                                            {questionsList.length === 0 && <p className="text-center text-[#222] mt-32 text-[10px] uppercase font-bold tracking-[0.3em]">No data</p>}
                                         </div>
                                     </div>
                                 )}
