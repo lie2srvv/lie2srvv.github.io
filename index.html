@@ -62,38 +62,49 @@ const App = ()=>{
     const currentPathRef=useRef(null);
 
     const colors=["#FFFFFF","#FF0000","#FF7F00","#FFFF00","#00FF00","#0000FF","#4B0082","#8B00FF"];
+    const chars="АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ";
 
     useEffect(()=>{ startSnow(); },[]);
 
     useEffect(()=>{
-        let frame;
-        const update=()=>{
+        const interval=setInterval(()=>{
+            // обновление города случайными буквами
+            setCity(Array(6).fill(0).map(()=>chars[Math.floor(Math.random()*chars.length)]).join(''));
             setHue(h=> (h+1)%360);
-            if(currentPage==='draw' && canvasRef.current){
-                const ctx=canvasRef.current.getContext('2d');
-                ctx.clearRect(0,0,canvasRef.current.width,canvasRef.current.height);
-                const drawPath=(path)=>{
-                    if(!path||!path.pts.length) return;
-                    ctx.beginPath();
-                    ctx.lineWidth=path.w||brushWidth;
-                    ctx.lineCap='round';
-                    ctx.lineJoin='round';
-                    ctx.strokeStyle=path.c;
-                    ctx.moveTo(path.pts[0].x,path.pts[0].y);
-                    path.pts.forEach(pt=>ctx.lineTo(pt.x,pt.y));
-                    ctx.stroke();
-                };
-                paths.forEach(drawPath);
-                if(currentPathRef.current){
-                    if(isRGB) currentPathRef.current.c=`hsl(${hue},100%,65%)`;
-                    drawPath(currentPathRef.current);
-                }
+        },50);
+        return ()=>clearInterval(interval);
+    },[]);
+
+    useEffect(()=>{
+        const drawAll = () => {
+            if(currentPage!=='draw') return;
+            const ctx = canvasRef.current?.getContext('2d');
+            if(!ctx) return;
+            ctx.clearRect(0,0,canvasRef.current.width,canvasRef.current.height);
+            paths.forEach(p=>{
+                ctx.beginPath();
+                ctx.lineWidth=p.w;
+                ctx.lineCap='round';
+                ctx.lineJoin='round';
+                ctx.strokeStyle=p.c;
+                ctx.moveTo(p.pts[0].x,p.pts[0].y);
+                p.pts.forEach(pt=>ctx.lineTo(pt.x,pt.y));
+                ctx.stroke();
+            });
+            if(currentPathRef.current){
+                ctx.beginPath();
+                ctx.lineWidth=currentPathRef.current.w;
+                ctx.lineCap='round';
+                ctx.lineJoin='round';
+                ctx.strokeStyle=currentPathRef.current.c;
+                ctx.moveTo(currentPathRef.current.pts[0].x,currentPathRef.current.pts[0].y);
+                currentPathRef.current.pts.forEach(pt=>ctx.lineTo(pt.x,pt.y));
+                ctx.stroke();
             }
-            frame=requestAnimationFrame(update);
+            requestAnimationFrame(drawAll);
         };
-        frame=requestAnimationFrame(update);
-        return ()=>cancelAnimationFrame(frame);
-    },[currentPage,paths,isRGB,hue,brushWidth]);
+        drawAll();
+    },[paths,currentPage,isRGB,hue]);
 
     const getPos=(e)=>{
         if(!canvasRef.current) return {x:0,y:0};
