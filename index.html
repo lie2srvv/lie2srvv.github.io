@@ -12,15 +12,14 @@
 <style>
 html,body{margin:0;padding:0;width:100%;height:100%;font-family:'Montserrat',sans-serif;background:#0a0a0a;color:#e0e0e0;overflow:hidden;}
 #root{width:100%;height:100%;position:relative;z-index:10;}
-canvas{position:absolute;top:0;left:0;}
-#snow-canvas{pointer-events:none;z-index:1;}
-#drawing-canvas{z-index:5;}
+#snow-canvas{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:1;}
+canvas#drawing-canvas{position:absolute;top:0;left:0;z-index:5;}
 .card{background:#141414;border-radius:2.5rem;border:1px solid rgba(255,255,255,0.07);padding:2rem;max-width:360px;margin:auto;}
 .color-dot{width:30px;height:30px;border-radius:50%;border:1px solid rgba(255,255,255,0.1);transition:0.2s;}
 .color-dot.active{transform:scale(1.3);border-color:#fff;box-shadow:0 0 15px rgba(255,255,255,0.3);}
 .rgb-btn{background:linear-gradient(45deg,#ff0000,#ff7300,#fffb00,#48ff00,#00ffd5,#002bff,#7a00ff,#ff00c8,#ff0000);background-size:400%;animation:moveGradient 5s linear infinite;border:none;color:white;font-weight:bold;text-shadow:0 1px 2px rgba(0,0,0,0.5);}
 @keyframes moveGradient{0%{background-position:0% 50%;}50%{background-position:100% 50%;}100%{background-position:0% 50%;}}
-.custom-color-input{width:50px;height:30px;padding:0 5px;border:none;border-radius:0.5rem;cursor:pointer;background:#222;color:#fff;text-transform:uppercase;}
+.custom-color-input{width:60px;height:30px;padding:0 5px;border:none;border-radius:0.5rem;cursor:pointer;background:#222;color:#fff;text-transform:uppercase;}
 .nav-link{width:80%;max-width:300px;padding:20px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.05);border-radius:1.5rem;text-align:center;transition:all 0.3s ease;}
 </style>
 </head>
@@ -28,6 +27,7 @@ canvas{position:absolute;top:0;left:0;}
 <canvas id="snow-canvas"></canvas>
 <canvas id="drawing-canvas"></canvas>
 <div id="root"></div>
+
 <script type="text/babel">
 const {useState,useEffect,useRef}=React;
 
@@ -48,11 +48,9 @@ const startSnow=()=>{
   animate();
 }
 
-// Приложение
 const App=()=>{
   const [currentPage,setCurrentPage]=useState('info');
   const [menuOpen,setMenuOpen]=useState(false);
-  const [city,setCity]=useState('МОСКВА');
   const [paths,setPaths]=useState([]);
   const [currentColor,setCurrentColor]=useState('#FFFFFF');
   const [isRGB,setIsRGB]=useState(false);
@@ -65,30 +63,25 @@ const App=()=>{
   const colors=["#FFFFFF","#FF0000","#FF7F00","#FFFF00","#00FF00","#0000FF","#4B0082","#8B00FF"];
   const chars="АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ";
 
+  useEffect(()=>{startSnow();},[]);
+
   useEffect(()=>{
-    startSnow();
     const drawCanvas=document.getElementById('drawing-canvas');
     const resizeCanvas=()=>{drawCanvas.width=window.innerWidth;drawCanvas.height=window.innerHeight;}
     window.addEventListener('resize',resizeCanvas);
     resizeCanvas();
   },[]);
 
-  // Рандомная локация и RGB
   useEffect(()=>{
-    const interval=setInterval(()=>{
-      setCity(Array(6).fill(0).map(()=>chars[Math.floor(Math.random()*chars.length)]).join(''));
-      setHue(h=> (h+1)%360);
-    },50);
+    const interval=setInterval(()=>{setHue(h=> (h+1)%360);},30);
     return ()=>clearInterval(interval);
   },[]);
 
-  // Рисование
   useEffect(()=>{
     const draw=()=>{
       const ctx=canvasRef.current?.getContext('2d');
       if(!ctx) return;
-      // НЕ затираем старые линии!
-      ctx.clearRect(0,0,ctx.canvas.width,ctx.canvas.height); // очистка перед рисованием всех линий
+      ctx.clearRect(0,0,ctx.canvas.width,ctx.canvas.height);
       paths.forEach(p=>{
         ctx.beginPath();
         ctx.lineWidth=p.w; ctx.lineCap='round'; ctx.lineJoin='round'; ctx.strokeStyle=p.c;
@@ -137,25 +130,6 @@ const App=()=>{
         <button onClick={()=>{setCurrentPage('info'); setMenuOpen(false);}} className="nav-link">Профиль</button>
         <button onClick={()=>{setCurrentPage('draw'); setMenuOpen(false);}} className="nav-link">Холст</button>
       </nav>
-
-      {currentPage==='info' && (
-        <div className="card z-20">
-          <h1 className="text-3xl font-bold mb-1">lie2srvv</h1>
-          <span className="text-xs font-mono text-white/40 mb-4 block">@lie2srvv</span>
-          <p className="text-sm text-[#999] mb-4">Александр, 16 лет. Увлекаюсь программированием, люблю логические задачки.</p>
-          <div className="flex justify-between mb-6">
-            <div>
-              <p className="text-[10px] uppercase tracking-widest text-[#444] font-bold">Страна</p>
-              <p className="text-sm text-white font-medium">Россия</p>
-            </div>
-            <div className="text-right">
-              <p className="text-[10px] uppercase tracking-widest text-[#444] font-bold">Локация</p>
-              <p className="text-sm font-mono font-bold uppercase">{city}</p>
-            </div>
-          </div>
-          <a href="https://t.me/lie2survive" target="_blank" className="block text-center p-4 bg-white/5 border border-white/5 rounded-3xl font-bold text-xs uppercase tracking-widest text-[#aaa] hover:bg-white/10 transition-all active:scale-95">Telegram</a>
-        </div>
-      )}
 
       {currentPage==='draw' && (
         <div className="absolute inset-0 z-20">
