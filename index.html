@@ -10,6 +10,7 @@
   :root{--bg:#0a0a0a;--card:#141414;--muted:#9aa;--text:#e6e6e6}
   *{box-sizing:border-box}
   html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font-family:Montserrat,system-ui,Arial;overflow:hidden}
+  #snow { position:fixed; inset:0; pointer-events:none; z-index:4 }
   #canvasLayer { position:fixed; inset:0; z-index:5; touch-action:none; }
   #ui { position:fixed; inset:0; z-index:20; display:flex; align-items:center; justify-content:center; pointer-events:none }
   #panel { pointer-events:auto; background:var(--card); border-radius:18px; padding:16px; width:360px; max-width:92%; border:1px solid rgba(255,255,255,0.06); box-shadow:0 20px 40px rgba(0,0,0,0.6); }
@@ -28,233 +29,164 @@
   .slider{width:140px}
   .sizeControl{display:flex;align-items:center;gap:8px;white-space:nowrap}
   .paletteBtn{padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:var(--text);cursor:pointer}
+  #bwToggle{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:35;width:72px;height:72px;border-radius:50%;border:2px solid rgba(255,255,255,0.06);background:linear-gradient(180deg,#fff,#eee);display:flex;align-items:center;justify-content:center;cursor:pointer;font-weight:700;color:#000;pointer-events:auto}
+  #bwToggle.black{background:#000;color:#fff}
   #burger{position:fixed;left:50%;transform:translateX(-50%);bottom:14px;z-index:30;width:56px;height:56px;border-radius:999px;background:#1a1a1a;border:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:0.7;pointer-events:auto}
   #burger:active{transform:translateX(-50%) scale(.98)}
   .hint{font-size:12px;color:var(--muted);text-align:center;margin-top:8px}
+  .undoRedo{position:fixed;bottom:14px;right:14px;display:flex;gap:8px;z-index:40;pointer-events:auto}
+  .undoRedo button{width:44px;height:44px;border-radius:50%;background:#222;border:1px solid rgba(255,255,255,0.06);color:#fff;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;user-select:none;}
 </style>
 </head>
 <body>
-<canvas id="canvasLayer"></canvas>
+  <canvas id="snow"></canvas>
+  <canvas id="canvasLayer"></canvas>
 
-<div id="ui">
-  <div id="panel">
-    <div style="display:flex;justify-content:space-between;align-items:center">
-      <div>
-        <div class="title">lie2srvv</div>
-        <div class="nick">@lie2srvv</div>
-      </div>
-    </div>
-
-    <p class="muted" style="margin:8px 0">Александр, 16 лет. Увлекаюсь программированием, можете порисовать на этом сайте, если скучно :)</p>
-
-    <div style="margin-top:8px">
-      <div class="muted" style="margin-bottom:6px">Цвета</div>
-      <div class="colors" id="palette"></div>
-
-      <div class="controls" id="controlPanel">
-        <div class="left">
-          <label class="muted" style="margin-right:6px">HEX</label>
-          <input id="hex" class="hex" type="text" maxlength="7" placeholder="#FFFFFF" />
-          <button id="rgb" class="rgbBtn" title="Динамический RGB">RGB</button>
+  <div id="ui">
+    <div id="panel">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div class="title">lie2srvv</div>
+          <div class="nick">@lie2srvv</div>
         </div>
-
-        <div class="sizeControl">
-          <label class="muted">Толщина</label>
-          <input id="width" class="slider" type="range" min="1" max="40" value="4" />
-        </div>
-
-        <button id="openPalette" class="paletteBtn" title="Открыть круговую палитру">Палитра</button>
-        <button id="undo" class="paletteBtn">⤺</button>
-        <button id="redo" class="paletteBtn">⤻</button>
-        <button id="eraserBtn" class="paletteBtn">Ластик</button>
-        <button id="clear" class="clear">Очистить</button>
       </div>
 
-      <div class="hint">Нажми ☰ (ПКМ для ПК), чтобы скрыть / показать панель. Чтобы рисовать — коснись и тяни по экрану.</div>
+      <p class="muted" style="margin:8px 0">Александр, 16 лет. Увлекаюсь программированием, можете порисовать на этом сайте, если скучно :)</p>
+
+      <div style="margin-top:8px">
+        <div class="muted" style="margin-bottom:6px">Цвета</div>
+        <div class="colors" id="palette"></div>
+
+        <div class="controls">
+          <div class="left">
+            <label class="muted" style="margin-right:6px">HEX</label>
+            <input id="hex" class="hex" type="text" maxlength="7" placeholder="#FFFFFF" />
+            <button id="rgb" class="rgbBtn" title="Динамический RGB">RGB</button>
+          </div>
+
+          <div class="sizeControl">
+            <label class="muted">Толщина</label>
+            <input id="width" class="slider" type="range" min="1" max="40" value="4" />
+          </div>
+
+          <button id="openPalette" class="paletteBtn" title="Открыть круговую палитру">Палитра</button>
+          <label class="paletteBtn" for="snowToggle"><input id="snowToggle" type="checkbox" style="margin-right:8px" checked>Снег</label>
+          <button id="openBg" class="paletteBtn" title="Настройки фона">Фон</button>
+          <button id="clear" class="clear">Очистить</button>
+        </div>
+
+        <div class="hint">Нажми ☰ (ПКМ для ПК), чтобы скрыть / показать панель. Чтобы рисовать — коснись и тяни по экрану.</div>
+      </div>
     </div>
   </div>
-</div>
 
-<button id="burger" aria-label="menu">☰</button>
+  <div class="undoRedo">
+    <button id="undo" title="Undo">↶</button>
+    <button id="redo" title="Redo">↷</button>
+  </div>
+
+  <button id="burger" aria-label="menu">☰</button>
 
 <script>
 (function(){
-  const canvas = document.getElementById('canvasLayer');
-  const ctx = canvas.getContext('2d', { alpha: true });
-  const dpr = Math.max(1, window.devicePixelRatio || 1);
+const canvas = document.getElementById('canvasLayer');
+const ctx = canvas.getContext('2d');
+const dpr = Math.max(1, window.devicePixelRatio||1);
+canvas.width = innerWidth*dpr;
+canvas.height = innerHeight*dpr;
+canvas.style.width = innerWidth+'px';
+canvas.style.height = innerHeight+'px';
+ctx.setTransform(dpr,0,0,dpr,0,0);
 
-  const paletteEl = document.getElementById('palette');
-  const hexEl = document.getElementById('hex');
-  const rgbBtn = document.getElementById('rgb');
-  const widthEl = document.getElementById('width');
-  const clearBtn = document.getElementById('clear');
-  const eraserBtn = document.getElementById('eraserBtn');
-  const undoBtn = document.getElementById('undo');
-  const redoBtn = document.getElementById('redo');
+let drawing=false, isEraser=false, brushWidth=4, currentColor='#FFFFFF', useRGB=false;
+const paths=[], redoStack=[];
+let currentPath=null;
 
-  const TOP_COLORS = ['#FFFFFF','#000000'];
-  const BOTTOM_COLORS = ['#FF3B30','#FF9500','#FFCC00','#4CD964','#5AC8FA','#007AFF','#AF52DE'];
+// palette
+const paletteEl = document.getElementById('palette');
+const hexEl = document.getElementById('hex');
+const widthEl = document.getElementById('width');
+const rgbBtn = document.getElementById('rgb');
+const clearBtn = document.getElementById('clear');
+const TOP_COLORS=['#FFFFFF','#000000'];
+const BOTTOM_COLORS=['#FF3B30','#FF9500','#FFCC00','#4CD964','#5AC8FA','#007AFF','#AF52DE'];
 
-  let currentColor = '#FFFFFF';
-  let useRGB = false;
-  let brushWidth = Number(widthEl.value) || 4;
-  let hueBase = 0;
-  let drawing = false;
-  let currentPath = null;
-  let isEraser = false;
-
-  const paths = [];
-  const undoStack = [];
-  const redoStack = [];
-
-  function resizeCanvas(){
-    const w = innerWidth, h = innerHeight;
-    canvas.style.width = w + 'px';
-    canvas.style.height = h + 'px';
-    canvas.width = Math.round(w * dpr);
-    canvas.height = Math.round(h * dpr);
-    ctx.setTransform(dpr,0,0,dpr,0,0);
-    redraw();
-  }
-  window.addEventListener('resize', resizeCanvas);
-  resizeCanvas();
-
-  function renderPalette(){
-    paletteEl.innerHTML='';
-    TOP_COLORS.concat(BOTTOM_COLORS).forEach(col=>{
-      const b = document.createElement('button');
-      b.className='sw';
-      b.style.background = col;
-      b.dataset.color = col;
-      b.addEventListener('click', ()=>{
-        isEraser = false; useRGB=false; currentColor = col; updateUI();
-      });
-      paletteEl.appendChild(b);
-    });
-  }
-  renderPalette();
-
-  function updateUI(){
-    Array.from(paletteEl.querySelectorAll('.sw')).forEach(el=>el.classList.remove('active'));
-    const btn = paletteEl.querySelector(`.sw[data-color="${currentColor}"]`);
-    if(btn) btn.classList.add('active');
-    hexEl.value = (!useRGB)?currentColor.toUpperCase():'';
-    widthEl.value = brushWidth;
-  }
-  updateUI();
-
-  hexEl.addEventListener('input', e=>{
-    let v = e.target.value.toUpperCase();
-    if(!v.startsWith('#')) v='#'+v;
-    v=v.replace(/[^#0-9A-F]/g,'').slice(0,7);
-    e.target.value=v;
-    if(/^#[0-9A-F]{6}$/.test(v)){
-      currentColor=v; useRGB=false; isEraser=false; updateUI();
-    }
+function renderPalette(){
+  paletteEl.innerHTML='';
+  const row1=document.createElement('div'); row1.style.display='flex'; row1.style.gap='8px';
+  TOP_COLORS.forEach(col=>{
+    const b=document.createElement('button');
+    b.className='sw'; b.style.background=col; b.dataset.color=col;
+    b.onclick=()=>{currentColor=col; isEraser=false; useRGB=false; updateUI();}
+    row1.appendChild(b);
   });
-  rgbBtn.addEventListener('click', ()=>{ useRGB=!useRGB; updateUI(); });
-  widthEl.addEventListener('input', e=>{ brushWidth=Number(e.target.value)||1; updateUI(); });
-
-  clearBtn.addEventListener('click', ()=>{
-    undoStack.push(JSON.parse(JSON.stringify(paths)));
-    redoStack.length=0;
-    paths.length=0;
-    redraw();
+  const eraser=document.createElement('button'); eraser.className='sw'; eraser.textContent='Ластик';
+  eraser.onclick=()=>{isEraser=true; updateUI();}
+  row1.appendChild(eraser);
+  const row2=document.createElement('div'); row2.style.display='flex'; row2.style.gap='8px';
+  BOTTOM_COLORS.forEach(col=>{
+    const b=document.createElement('button'); b.className='sw'; b.style.background=col; b.dataset.color=col;
+    b.onclick=()=>{currentColor=col; isEraser=false; useRGB=false; updateUI();}
+    row2.appendChild(b);
   });
+  paletteEl.appendChild(row1);
+  paletteEl.appendChild(row2);
+}
+renderPalette();
 
-  eraserBtn.addEventListener('click', ()=>{ isEraser = true; });
+function updateUI(){
+  Array.from(paletteEl.querySelectorAll('.sw')).forEach(el=>el.classList.remove('active'));
+  if(isEraser){paletteEl.querySelector('button:contains("Ластик")')?.classList.add('active');}
+  else{paletteEl.querySelector(`.sw[data-color="${currentColor}"]`)?.classList.add('active');}
+  hexEl.value=currentColor;
+  widthEl.value=brushWidth;
+}
 
-  function getPos(e){
-    const rect = canvas.getBoundingClientRect();
-    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+// drawing
+function getPos(e){return {x:e.clientX, y:e.clientY};}
+
+canvas.addEventListener('pointerdown', e=>{
+  drawing=true; redoStack.length=0;
+  currentPath={pts:[getPos(e)], color:currentColor, width:brushWidth, eraser:isEraser};
+});
+canvas.addEventListener('pointermove', e=>{
+  if(!drawing) return;
+  currentPath.pts.push(getPos(e));
+  redraw();
+});
+canvas.addEventListener('pointerup', e=>{
+  if(!drawing) return;
+  drawing=false; paths.push(currentPath); currentPath=null;
+  redraw();
+});
+
+function redraw(){
+  ctx.clearRect(0,0,canvas.width/dpr, canvas.height/dpr);
+  for(const p of paths){
+    drawPath(p);
   }
+  if(currentPath) drawPath(currentPath);
+}
 
-  function redraw(){
-    ctx.clearRect(0,0,canvas.width/dpr,canvas.height/dpr);
-    for(const path of paths){
-      if(path.isRGB){
-        for(let i=0;i<path.pts.length-1;i++){
-          const hue = (path.hueStart+i*2+hueBase)%360;
-          drawSegment(ctx, path.pts[i], path.pts[i+1], `hsl(${hue},100%,60%)`, path.width);
-        }
-      } else {
-        ctx.beginPath();
-        ctx.lineWidth = path.width;
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-        ctx.strokeStyle = path.color;
-        ctx.moveTo(path.pts[0].x,path.pts[0].y);
-        for(let i=1;i<path.pts.length;i++) ctx.lineTo(path.pts[i].x,path.pts[i].y);
-        ctx.stroke();
-      }
-    }
-  }
+function drawPath(p){
+  ctx.beginPath();
+  ctx.lineWidth=p.width; ctx.lineCap='round'; ctx.lineJoin='round';
+  ctx.strokeStyle=p.eraser?'#0a0a0a':p.color;
+  ctx.moveTo(p.pts[0].x, p.pts[0].y);
+  for(let i=1;i<p.pts.length;i++) ctx.lineTo(p.pts[i].x,p.pts[i].y);
+  ctx.stroke();
+}
 
-  function drawSegment(ctx,p1,p2,style,width){
-    ctx.beginPath();
-    ctx.lineWidth=width;
-    ctx.lineCap='round';
-    ctx.lineJoin='round';
-    ctx.strokeStyle=style;
-    ctx.moveTo(p1.x,p1.y);
-    ctx.lineTo(p2.x,p2.y);
-    ctx.stroke();
-  }
+// undo/redo
+document.getElementById('undo').onclick=()=>{
+  if(paths.length){redoStack.push(paths.pop()); redraw();}
+};
+document.getElementById('redo').onclick=()=>{
+  if(redoStack.length){paths.push(redoStack.pop()); redraw();}
+};
 
-  function eraseAtPoint(pt,radius){
-    for(let i=paths.length-1;i>=0;i--){
-      const path=paths[i];
-      for(let p of path.pts){
-        if(Math.hypot(p.x-pt.x,p.y-pt.y)<=radius){ paths.splice(i,1); break; }
-      }
-    }
-  }
-
-  canvas.addEventListener('pointerdown', e=>{
-    drawing=true;
-    const pos=getPos(e);
-    if(isEraser){
-      eraseAtPoint(pos,brushWidth); redraw();
-    } else {
-      currentPath={ pts:[pos], isRGB:useRGB, hueStart:hueBase, color:currentColor, width:brushWidth };
-    }
-  });
-
-  canvas.addEventListener('pointermove', e=>{
-    if(!drawing) return;
-    const pos=getPos(e);
-    if(isEraser){ eraseAtPoint(pos,brushWidth); redraw(); }
-    else currentPath.pts.push(pos);
-  });
-
-  canvas.addEventListener('pointerup', ()=>{
-    drawing=false;
-    if(currentPath && currentPath.pts.length){ 
-      undoStack.push(JSON.parse(JSON.stringify(paths)));
-      redoStack.length=0;
-      paths.push(currentPath); 
-      currentPath=null; 
-      redraw(); 
-    }
-  });
-
-  undoBtn.addEventListener('click', ()=>{
-    if(undoStack.length){
-      redoStack.push(JSON.parse(JSON.stringify(paths)));
-      paths.splice(0, paths.length, ...undoStack.pop());
-      redraw();
-    }
-  });
-
-  redoBtn.addEventListener('click', ()=>{
-    if(redoStack.length){
-      undoStack.push(JSON.parse(JSON.stringify(paths)));
-      paths.splice(0, paths.length, ...redoStack.pop());
-      redraw();
-    }
-  });
-
-  (function animate(){ hueBase=(hueBase+1)%360; redraw(); requestAnimationFrame(animate); })();
+// clear
+clearBtn.onclick=()=>{paths.length=0; redoStack.length=0; redraw();};
 
 })();
 </script>
