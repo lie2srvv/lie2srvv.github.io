@@ -16,6 +16,8 @@ canvas#snow, canvas#draw{position:fixed; inset:0; z-index:0;}
   border-radius:22px; padding:20px 28px; max-width:420px; width:90%; 
   display:flex; flex-direction:column; align-items:flex-start; justify-content:flex-start;
   transition:height 0.3s ease;
+  box-shadow: 0 8px 32px 0 rgba(0,0,0,0.37);
+  border: 1px solid rgba(255,255,255,0.1);
 }
 h1{margin-top:0; font-size:23px; color:#ffffff;}
 p{line-height:1.55; margin:6px 0; color:#d9d9d9; text-align:left; word-break:keep-all;}
@@ -36,7 +38,8 @@ p{line-height:1.55; margin:6px 0; color:#d9d9d9; text-align:left; word-break:kee
 </style>
 </head>
 <body>
-<audio id="bgMusic" src="https://cdn.pixabay.com/download/audio/2022/08/25/audio_91f5b6c0d2.mp3?filename=calm-background-ambient-10848.mp3" loop autoplay></audio>
+
+<audio id="bgMusic" src="https://cdn.pixabay.com/download/audio/2022/08/25/audio_91f5b6c0d2.mp3?filename=calm-background-ambient-10848.mp3" loop></audio>
 <audio id="typeSound" src="https://www.soundjay.com/keyboard/keyboard-1.mp3"></audio>
 <audio id="clickSound" src="https://www.soundjay.com/button/button-16.mp3"></audio>
 
@@ -88,7 +91,7 @@ const textLines = [
   {el:"line7", text:"🏦 СБП в лс ТГ"}
 ];
 
-// --- Город / рандомный текст ---
+// --- Город ---
 const letters="абвгдеёжзийклмнопрстуфхцчшщъыьэюя";
 const citySpan = document.createElement("span"); 
 citySpan.className="city"; 
@@ -109,7 +112,9 @@ function typeText(){
     const el=document.getElementById(item.el);
     if(iChar<item.text.length){
       el.textContent+=item.text[iChar];
-      document.getElementById("typeSound").play();
+      const s = document.getElementById("typeSound").cloneNode(); // Клонируем для наложения звуков
+      s.volume = 0.2;
+      s.play();
       iChar++;
       setTimeout(typeText,60);
     } else {
@@ -127,8 +132,8 @@ function typeText(){
   } else if(item.links){
     const linksBlock = document.getElementById("linksBlock");
     linksBlock.innerHTML = `<p>Мои ссылки:</p>
-      <a href="https://t.me/lie2survive" target="_blank">💬 Телеграм Канал</a><br>
-      <a href="https://github.com/lie2srvv" target="_blank">🕹️ Github</a>`;
+      <a href="https://t.me/lie2survive" target="_blank" rel="noopener noreferrer">💬 Телеграм Канал</a><br>
+      <a href="https://github.com/lie2srvv" target="_blank" rel="noopener noreferrer">🕹️ Github</a>`;
     iLine++; setTimeout(typeText,200);
   }
 }
@@ -137,9 +142,10 @@ typeText();
 // --- Снег ---
 const canvas = document.getElementById("snow");
 const ctx = canvas.getContext("2d");
-let w,h;
-function resize(){ w=canvas.width=window.innerWidth; h=canvas.height=window.innerHeight; }
-resize(); window.addEventListener("resize",resize);
+let w, h;
+function resizeSnow(){ w=canvas.width=window.innerWidth; h=canvas.height=window.innerHeight; }
+resizeSnow(); window.addEventListener("resize", resizeSnow);
+
 const snowflakes = Array.from({length:120},()=>({x:Math.random()*w,y:Math.random()*h,r:Math.random()*2+0.5,s:Math.random()*0.6+0.2}));
 function snow(){
   ctx.clearRect(0,0,w,h);
@@ -158,10 +164,15 @@ snow();
 // --- Рисование ---
 const drawCanvas=document.getElementById("draw");
 const dctx=drawCanvas.getContext("2d");
-function resizeDraw(){drawCanvas.width=window.innerWidth; drawCanvas.height=window.innerHeight;}
+function resizeDraw(){
+  const temp = dctx.getImageData(0,0,drawCanvas.width,drawCanvas.height);
+  drawCanvas.width=window.innerWidth; 
+  drawCanvas.height=window.innerHeight;
+  dctx.putImageData(temp,0,0);
+}
 resizeDraw(); window.addEventListener("resize",resizeDraw);
-let drawing=false, lastX, lastY;
 
+let drawing=false, lastX, lastY;
 let colors = ["#FF0000","#FF7F00","#FFFF00","#00FF00","#00FFFF","#0000FF","#8B00FF","rainbow","#FFFFFF"];
 let currentColor = 0;
 let rainbowHue=0;
@@ -175,11 +186,17 @@ function updateColorDot(){
   }
 }
 
-// --- Подсказка для рисования ---
 const drawHint = document.getElementById("drawHint");
 if(isDesktop) drawHint.style.display="block";
 
+// Функция старта музыки (нужна для обхода блокировки браузеров)
+function startAudio() {
+  const bg = document.getElementById("bgMusic");
+  if (bg.paused) bg.play().catch(()=>{});
+}
+
 drawCanvas.addEventListener("mousedown",(e)=>{
+  startAudio();
   drawing=true; lastX=e.clientX; lastY=e.clientY;
   document.getElementById("clickSound").play();
   if(isDesktop){
@@ -187,6 +204,7 @@ drawCanvas.addEventListener("mousedown",(e)=>{
     drawHint.style.display="none";
   }
 });
+
 drawCanvas.addEventListener("mouseup",()=>{drawing=false; lastX=null; lastY=null;});
 drawCanvas.addEventListener("mousemove",e=>{
   if(drawing && lastX!=null && lastY!=null){
@@ -209,18 +227,22 @@ document.addEventListener("keydown",e=>{
   }
 });
 
-// --- Радужная точка ---
-function animateRainbow(){
-  if(colors[currentColor]==="rainbow"){
-    rainbowHue = (rainbowHue+1)%360;
+// Радуга с привязкой к времени (стабильная скорость)
+let lastColorUpdate = 0;
+function animateRainbow(t){
+  if(colors[currentColor]==="rainbow" && t - lastColorUpdate > 16){
+    rainbowHue = (rainbowHue+2)%360;
     updateColorDot();
+    lastColorUpdate = t;
   }
   requestAnimationFrame(animateRainbow);
 }
-animateRainbow();
+requestAnimationFrame(animateRainbow);
 
-// --- Клик эффект ---
-drawCanvas.addEventListener("click",()=>{document.getElementById("clickSound").play();});
+drawCanvas.addEventListener("click",()=>{
+  startAudio();
+  document.getElementById("clickSound").play();
+});
 </script>
 </body>
 </html>
