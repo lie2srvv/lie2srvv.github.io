@@ -2,210 +2,244 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no" />
 <title>lie2srvv — холст</title>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;700&display=swap" rel="stylesheet">
 <script src="https://cdn.tailwindcss.com"></script>
 <style>
-  :root{--bg:#0a0a0a;--card:#141414;--muted:#999;--text:#e0e0e0}
+  :root{--bg:#0a0a0a;--card:#141414;--muted:#9aa;--text:#e6e6e6}
+  *{box-sizing:border-box}
   html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font-family:Montserrat,system-ui,Arial;overflow:hidden}
-  #snow{position:fixed;inset:0;pointer-events:none;z-index:1}
-  #draw{position:fixed;inset:0;z-index:5;touch-action:none}
-  #ui{position:fixed;inset:0;z-index:10;display:flex;align-items:center;justify-content:center}
-  .card{background:var(--card);border-radius:24px;padding:20px;border:1px solid rgba(255,255,255,.06);box-shadow:0 20px 40px rgba(0,0,0,.6);width:360px;max-width:92%}
-  .nav-btn{position:fixed;right:18px;top:18px;z-index:20;background:#1a1a1a;border-radius:12px;padding:10px;border:1px solid rgba(255,255,255,.06)}
-  .colors{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-  .color-swatch{width:34px;height:34px;border-radius:50%;border:1px solid rgba(255,255,255,.12);cursor:pointer;box-sizing:border-box}
-  .color-swatch.active{transform:scale(1.18);box-shadow:0 6px 18px rgba(0,0,0,.6);border-color:#fff}
-  .rgb-btn{padding:6px 10px;border-radius:10px;border:none;cursor:pointer;background:linear-gradient(90deg,#f00,#ff0,#0f0,#0ff,#00f,#f0f,#f00);background-size:300%}
-  .small{font-size:12px;color:var(--muted)}
-  input.hex{width:86px;padding:6px;border-radius:8px;border:1px solid rgba(255,255,255,.06);background:#0f0f0f;color:var(--text);text-transform:uppercase}
-  .controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:center}
-  .clear-btn{padding:8px 12px;border-radius:10px;background:#fff;color:#000;border:none;cursor:pointer}
-  .slider{width:140px}
-  a.telegram{display:block;text-align:center;margin-top:8px;padding:10px;border-radius:12px;background:rgba(255,255,255,.03);color:#aaa;text-decoration:none}
+  /* слои */
+  #snow { position:fixed; inset:0; pointer-events:none; z-index:1 }
+  #canvasLayer { position:fixed; inset:0; z-index:5; touch-action:none; } /* холст */
+  #ui { position:fixed; inset:0; z-index:20; display:flex; align-items:center; justify-content:center; pointer-events:none } /* UI поверх */
+  /* панель настроек — небольшой card, pointer-events включены */
+  #panel { pointer-events:auto; background:var(--card); border-radius:18px; padding:16px; width:360px; max-width:92%; border:1px solid rgba(255,255,255,0.06); box-shadow:0 20px 40px rgba(0,0,0,0.6); }
+  .title{font-weight:700;font-size:20px;margin:0}
+  .nick{font-family:monospace;color:rgba(255,255,255,0.18);font-size:12px;margin:4px 0 8px}
   .muted{color:var(--muted);font-size:13px}
-  .title{font-weight:700;font-size:20px;margin:0 0 6px}
-  .sub{font-family:monospace;color:rgba(255,255,255,.2);font-size:12px;margin-bottom:10px}
+  /* palette */
+  .colors{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .sw{width:34px;height:34px;border-radius:50%;border:1px solid rgba(255,255,255,0.08);cursor:pointer;outline:none}
+  .sw.active{transform:scale(1.14); box-shadow:0 8px 20px rgba(0,0,0,0.6); border-color:#fff}
+  .hex{width:84px;padding:6px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:#0f0f0f;color:var(--text);text-transform:uppercase}
+  .rgbBtn{padding:6px 10px;border-radius:10px;border:none;cursor:pointer;background:linear-gradient(90deg,#f00,#ff0,#0f0,#0ff,#00f,#f0f,#f00)}
+  .controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:center;margin-top:10px}
+  .clear{padding:8px 12px;border-radius:10px;background:#fff;color:#000;border:none;cursor:pointer}
+  .slider{width:140px}
+  /* burger снизу по центру */
+  #burger{position:fixed;left:50%;transform:translateX(-50%);bottom:14px;z-index:30;width:56px;height:56px;border-radius:999px;background:#1a1a1a;border:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;cursor:pointer}
+  #burger:active{transform:translateX(-50%) scale(.98)}
+  /* подсказка */
+  .hint{font-size:12px;color:var(--muted);text-align:center;margin-top:8px}
 </style>
 </head>
 <body>
-<canvas id="snow"></canvas>
-<canvas id="draw"></canvas>
 
-<!-- UI layer -->
+<canvas id="snow"></canvas>
+<canvas id="canvasLayer"></canvas>
+
+<!-- UI: панель в центре (pointer-events = auto) -->
 <div id="ui">
-  <div id="panel" class="card">
-    <!-- header -->
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+  <div id="panel">
+    <div style="display:flex;justify-content:space-between;align-items:center">
       <div>
         <div class="title">lie2srvv</div>
-        <div class="sub">@lie2srvv</div>
+        <div class="nick">@lie2srvv</div>
       </div>
       <div class="muted">Россия</div>
     </div>
 
-    <p class="muted" id="profile-text">Александр, 16 лет. Увлекаюсь программированием, люблю логические задачки.</p>
+    <p class="muted" style="margin:8px 0">Александр, 16 лет. Увлекаюсь программированием, люблю логические задачки.</p>
 
-    <!-- controls -->
     <div style="margin-top:8px">
-      <div class="small" style="margin-bottom:6px">Цвета</div>
-      <div class="colors" id="colorsRow">
-        <!-- color swatches injected by script -->
+      <div class="muted" style="margin-bottom:6px">Цвета</div>
+      <div class="colors" id="palette"></div>
+
+      <div class="controls">
+        <label class="muted" style="margin-right:6px">HEX</label>
+        <input id="hex" class="hex" type="text" maxlength="7" placeholder="#FFFFFF" />
+        <button id="rgb" class="rgbBtn" title="Динамический RGB">RGB</button>
+        <label class="muted" style="margin-left:6px">Толщина</label>
+        <input id="width" class="slider" type="range" min="1" max="40" value="4" />
+        <button id="clear" class="clear">Очистить</button>
       </div>
-    </div>
 
-    <div style="margin-top:12px" class="controls">
-      <label class="small">HEX</label>
-      <input id="hexInput" class="hex" type="text" maxlength="7" placeholder="#FFFFFF" />
-      <button id="rgbToggle" class="rgb-btn small" title="Динамический RGB">RGB</button>
-      <label class="small" style="margin-left:6px">Ширина</label>
-      <input id="widthRange" class="slider" type="range" min="1" max="40" value="4" />
-      <button id="clearBtn" class="clear-btn">Очистить</button>
+      <div class="hint">Нажми ☰, чтобы скрыть/показать панель. Чтобы рисовать — коснись и тяни по экрану.</div>
     </div>
-
-    <a class="telegram" href="https://t.me/lie2survive" target="_blank">Telegram</a>
   </div>
 </div>
 
-<!-- burger menu (desktop/mobile) -->
-<button id="burger" class="nav-btn" title="Меню">☰</button>
+<!-- бургер внизу по центру -->
+<button id="burger" aria-label="menu">☰</button>
 
 <script>
-/* ====== Snow background (simple) ====== */
-(function startSnow(){
+/* ============ Snow background ============ */
+(function(){
   const c = document.getElementById('snow');
   const ctx = c.getContext('2d');
-  let W, H, parts=[];
-  function resize(){
-    W = c.width = innerWidth;
-    H = c.height = innerHeight;
-  }
-  class P{ constructor(){ this.reset(); }
-    reset(){ this.x = Math.random()*W; this.y = Math.random()*-H; this.r = Math.random()*2+1; this.vy = Math.random()*0.6+0.4; this.amp = Math.random()*0.5; }
-    step(){ this.y += this.vy; this.x += Math.sin(this.y*0.01)*this.amp; if(this.y>H) this.reset(); }
-    draw(){ const g = ctx.createRadialGradient(this.x,this.y,0,this.x,this.y,this.r); g.addColorStop(0,'rgba(255,255,255,0.9)'); g.addColorStop(1,'transparent'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(this.x,this.y,this.r,0,Math.PI*2); ctx.fill(); }
-  }
+  let W = innerWidth, H = innerHeight;
+  function resize(){ W = c.width = innerWidth; H = c.height = innerHeight; }
   window.addEventListener('resize', resize);
   resize();
-  for(let i=0;i<60;i++) parts.push(new P());
-  (function loop(){
+  const parts = [];
+  for(let i=0;i<60;i++){
+    parts.push({ x: Math.random()*W, y: Math.random()*-H, r: Math.random()*2+1, vy: Math.random()*0.6+0.3, off: Math.random()*2000 });
+  }
+  function loop(){
     ctx.clearRect(0,0,W,H);
-    parts.forEach(p=>{ p.step(); p.draw(); });
+    for(const p of parts){
+      p.y += p.vy;
+      p.x += Math.sin((Date.now()+p.off)*0.0015) * 0.4;
+      if(p.y > H) { p.y = -10; p.x = Math.random()*W; }
+      const g = ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.r);
+      g.addColorStop(0, 'rgba(255,255,255,0.9)');
+      g.addColorStop(1, 'transparent');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill();
+    }
     requestAnimationFrame(loop);
-  })();
+  }
+  loop();
 })();
 
-/* ====== Main app (canvas drawing + UI) ====== */
-(function app(){
-  const canvas = document.getElementById('draw');
-  const ctx = canvas.getContext('2d');
+/* ============ Drawing app ============ */
+(function(){
+  const canvas = document.getElementById('canvasLayer');
+  const ctx = canvas.getContext('2d', { alpha: true });
   const dpr = Math.max(1, window.devicePixelRatio || 1);
 
-  // UI elems
-  const colorsRow = document.getElementById('colorsRow');
-  const hexInput = document.getElementById('hexInput');
-  const rgbToggle = document.getElementById('rgbToggle');
-  const widthRange = document.getElementById('widthRange');
-  const clearBtn = document.getElementById('clearBtn');
+  // UI refs
+  const paletteEl = document.getElementById('palette');
+  const hexEl = document.getElementById('hex');
+  const rgbBtn = document.getElementById('rgb');
+  const widthEl = document.getElementById('width');
+  const clearBtn = document.getElementById('clear');
   const burger = document.getElementById('burger');
   const panel = document.getElementById('panel');
 
-  // configuration: 1 white + 7 rainbow
-  const palette = ['#FFFFFF','#FF3B30','#FF9500','#FFCC00','#4CD964','#007AFF','#5856D6','#AF52DE'];
+  // palette: 1 white + 7 rainbow
+  const PALETTE = ['#FFFFFF','#FF3B30','#FF9500','#FFCC00','#4CD964','#007AFF','#5856D6','#AF52DE'];
 
   // state
   let currentColor = '#FFFFFF';
   let useRGB = false;
-  let brushWidth = Number(widthRange.value) || 4;
-  let hueOffset = 0; // rotating for dynamic rgb
+  let brushWidth = Number(widthEl.value) || 4;
+  let hueBase = 0;
   let drawing = false;
   let currentPath = null;
-  const paths = []; // each: {pts:[{x,y}], color, isRGB, hueStart, width}
+  const paths = []; // { pts: [{x,y}], isRGB:bool, hueStart:number, color:string, width:number }
 
-  // setup canvas size & scale for DPR
+  // canvas sizing
   function resizeCanvas(){
     const w = innerWidth, h = innerHeight;
     canvas.style.width = w + 'px';
     canvas.style.height = h + 'px';
     canvas.width = Math.round(w * dpr);
     canvas.height = Math.round(h * dpr);
-    ctx.setTransform(dpr,0,0,dpr,0,0); // use CSS px coordinates
-    redrawAll();
+    ctx.setTransform(dpr,0,0,dpr,0,0); // so coordinates in CSS px
+    redraw(); // redraw after resize
   }
   window.addEventListener('resize', resizeCanvas);
   resizeCanvas();
 
-  // create palette buttons
+  // build palette UI
   function renderPalette(){
-    colorsRow.innerHTML = '';
-    palette.forEach(col=>{
+    paletteEl.innerHTML = '';
+    for(const col of PALETTE){
       const b = document.createElement('button');
-      b.className = 'color-swatch';
+      b.className = 'sw';
       b.style.background = col;
       b.title = col;
-      b.onclick = () => { currentColor = col; useRGB = false; updateUI(); };
-      colorsRow.appendChild(b);
-    });
-    // hex input already present
-    // RGB button handled separately
-    updateUI();
-  }
-
-  // update UI (active classes)
-  function updateUI(){
-    // active swatch
-    Array.from(colorsRow.children).forEach(btn=>{
-      const bg = btn.style.background.replace(/\s/g,'');
-      btn.classList.toggle('active', !useRGB && bg.toLowerCase() === (currentColor||'').toLowerCase());
-    });
-    hexInput.value = (useRGB ? '' : (currentColor || '')).toUpperCase();
-    rgbToggle.style.boxShadow = useRGB ? '0 0 0 3px rgba(255,255,255,0.06)' : 'none';
-    widthRange.value = brushWidth;
-  }
-
-  // validate hex
-  function isValidHex(s){
-    return /^#([0-9A-F]{6})$/i.test(s);
-  }
-
-  // pointer helpers (works for mouse and touch)
-  function pointerDown(e){
-    // only left button or touch: if (e.pointerType === 'mouse' && e.button !== 0) return;
-    drawing = true;
-    // start new path
-    const p = getPos(e);
-    const hueStart = hueOffset;
-    currentPath = { pts: [p], color: currentColor, isRGB: useRGB, hueStart: hueStart, width: brushWidth };
-    // keep drawing without calling setState
-    // capture pointer
-    if (e.pointerId && canvas.setPointerCapture) {
-      try { canvas.setPointerCapture(e.pointerId); } catch {}
+      b.addEventListener('click', ()=>{ useRGB = false; currentColor = col; updateUI(); });
+      paletteEl.appendChild(b);
     }
   }
-  function pointerMove(e){
+  renderPalette();
+
+  function updateUI(){
+    // swatches active
+    Array.from(paletteEl.children).forEach(btn=>{
+      const bg = (btn.style.background || '').toLowerCase();
+      btn.classList.toggle('active', !useRGB && bg === (currentColor||'').toLowerCase());
+    });
+    hexEl.value = (!useRGB && currentColor) ? currentColor.toUpperCase() : '';
+    rgbBtn.style.outline = useRGB ? '2px solid rgba(255,255,255,0.08)' : 'none';
+    widthEl.value = brushWidth;
+  }
+  updateUI();
+
+  // validate hex input
+  hexEl.addEventListener('input', (e)=>{
+    let v = e.target.value.toUpperCase();
+    if(!v.startsWith('#')) v = '#' + v;
+    // keep only # + hex digits
+    v = v.replace(/[^#0-9A-F]/g,'').slice(0,7);
+    e.target.value = v;
+    if(/^#[0-9A-F]{6}$/.test(v)){
+      currentColor = v;
+      useRGB = false;
+      updateUI();
+    }
+  });
+
+  // rgb toggle
+  rgbBtn.addEventListener('click', ()=>{ useRGB = !useRGB; if(useRGB) hexEl.value = ''; updateUI(); });
+
+  // width
+  widthEl.addEventListener('input', (e)=>{ brushWidth = Number(e.target.value)||1; updateUI(); });
+
+  // clear
+  clearBtn.addEventListener('click', ()=>{ paths.length = 0; currentPath = null; redraw(); });
+
+  // burger toggle
+  burger.addEventListener('click', ()=>{
+    // toggle panel visibility (show/hide)
+    const visible = panel.style.display !== 'none';
+    panel.style.display = visible ? 'none' : 'block';
+  });
+
+  // pointer events (unified)
+  canvas.style.touchAction = 'none';
+  canvas.addEventListener('pointerdown', (e)=>{
+    // only primary pointers
+    if(e.button !== undefined && e.button !== 0) return;
+    // ensure panel doesn't intercept: pointerdown only on canvas area
+    // start drawing
+    drawing = true;
+    const pos = getPos(e);
+    const hueStart = hueBase;
+    currentPath = { pts: [pos], isRGB: useRGB, hueStart: hueStart, color: currentColor, width: brushWidth };
+    // capture pointer so we receive move/up even if pointer goes outside element
+    try { e.target.setPointerCapture(e.pointerId); } catch(_) {}
+  }, { passive:false });
+
+  window.addEventListener('pointermove', (e)=>{
     if(!drawing || !currentPath) return;
     e.preventDefault();
-    const p = getPos(e);
+    const pos = getPos(e);
     const last = currentPath.pts[currentPath.pts.length-1];
-    // avoid huge duplicates
-    if(Math.hypot(p.x-last.x,p.y-last.y) < 0.5) return;
-    currentPath.pts.push(p);
-  }
-  function pointerUp(e){
+    const dx = pos.x - last.x, dy = pos.y - last.y;
+    if(Math.hypot(dx,dy) < 0.5) return;
+    currentPath.pts.push(pos);
+  }, { passive:false });
+
+  window.addEventListener('pointerup', (e)=>{
     if(!drawing) return;
     drawing = false;
-    if(currentPath && currentPath.pts.length>0){
+    if(currentPath && currentPath.pts.length) {
       paths.push(currentPath);
       currentPath = null;
     }
-    // release pointer capture
-    if (e.pointerId && canvas.releasePointerCapture) {
-      try { canvas.releasePointerCapture(e.pointerId); } catch {}
-    }
-  }
+    try { e.target.releasePointerCapture && e.target.releasePointerCapture(e.pointerId); } catch(_) {}
+  }, { passive:false });
 
-  // get pointer position relative to canvas (CSS px)
+  window.addEventListener('pointercancel', (e)=>{
+    if(drawing) { drawing = false; currentPath = null; }
+  }, { passive:false });
+
+  // helper: position relative to canvas (CSS px)
   function getPos(e){
     const rect = canvas.getBoundingClientRect();
     const clientX = (e.clientX !== undefined) ? e.clientX : (e.touches && e.touches[0].clientX);
@@ -214,33 +248,32 @@
   }
 
   // draw helpers
-  function drawSegment(ctx, p1, p2, strokeStyle, width){
+  function drawSegment(p1, p2, style, width){
     ctx.beginPath();
     ctx.lineWidth = width;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
-    ctx.strokeStyle = strokeStyle;
+    ctx.strokeStyle = style;
     ctx.moveTo(p1.x, p1.y);
     ctx.lineTo(p2.x, p2.y);
     ctx.stroke();
   }
 
-  // redraw everything (called after resize and continuously in loop)
-  function redrawAll(){
-    // clear canvas (CSS px)
+  // redraw all paths + current path
+  function redraw(){
+    // clear in CSS px coords
     ctx.clearRect(0,0,canvas.width/dpr, canvas.height/dpr);
 
-    // draw stored paths
+    // draw saved paths
     for(const path of paths){
       if(path.isRGB){
-        // draw per segment with varying hue
+        // draw each segment with hue variation
         const pts = path.pts;
         for(let i=0;i<pts.length-1;i++){
-          const hue = (path.hueStart + i*2 + hueOffset) % 360;
-          drawSegment(ctx, pts[i], pts[i+1], `hsl(${hue},100%,60%)`, path.width);
+          const hue = (path.hueStart + i*2 + hueBase) % 360;
+          drawSegment(pts[i], pts[i+1], `hsl(${hue},100%,60%)`, path.width);
         }
       } else {
-        // single color path
         ctx.beginPath();
         ctx.lineWidth = path.width;
         ctx.lineCap = 'round';
@@ -252,13 +285,13 @@
       }
     }
 
-    // draw current path over them
+    // draw current path live
     if(currentPath){
       if(currentPath.isRGB){
         const pts = currentPath.pts;
         for(let i=0;i<pts.length-1;i++){
-          const hue = (currentPath.hueStart + i*2 + hueOffset) % 360;
-          drawSegment(ctx, pts[i], pts[i+1], `hsl(${hue},100%,60%)`, currentPath.width);
+          const hue = (currentPath.hueStart + i*2 + hueBase) % 360;
+          drawSegment(pts[i], pts[i+1], `hsl(${hue},100%,60%)`, currentPath.width);
         }
       } else {
         ctx.beginPath();
@@ -273,108 +306,19 @@
     }
   }
 
-  // animation loop: update hueOffset for dynamic RGB and redraw
-  (function loop(){
-    hueOffset = (hueOffset + 1) % 360;
-    redrawAll();
-    requestAnimationFrame(loop);
+  // loop: update hueBase for animated RGB + redraw
+  (function animate(){
+    hueBase = (hueBase + 1) % 360;
+    redraw();
+    requestAnimationFrame(animate);
   })();
 
-  // event wiring: pointer events are best for unified input (mouse+touch+pen)
-  canvas.style.touchAction = 'none'; // prevent scrolling on touch move
-  canvas.addEventListener('pointerdown', pointerDown, {passive:false});
-  window.addEventListener('pointermove', pointerMove, {passive:false});
-  window.addEventListener('pointerup', pointerUp, {passive:false});
-  window.addEventListener('pointercancel', pointerUp, {passive:false});
-
-  // UI wiring
-  renderPalette();
-
-  function renderPalette(){
-    // create swatches (already)
-    colorsRow.innerHTML = '';
-    for(const col of palette){
-      const btn = document.createElement('button');
-      btn.className = 'color-swatch';
-      btn.style.background = col;
-      btn.title = col;
-      btn.addEventListener('click', ()=>{
-        currentColor = col; useRGB = false; useRGB = false; // local var handled below
-        useRGB = false;
-        updateUI();
-      });
-      colorsRow.appendChild(btn);
-    }
-    updateUI();
-  }
-
-  // local useRGB variable mapping
-  function setUseRGB(val){
-    useRGB = val;
-    if(useRGB) currentColor = '#000000';
-    updateUI();
-  }
-
-  // update UI active states
-  function updateUI(){
-    Array.from(colorsRow.children).forEach(btn=>{
-      btn.classList.toggle('active', !useRGB && btn.style.background.toLowerCase() === (currentColor||'').toLowerCase());
-    });
-    hexInput.value = (!useRGB && currentColor) ? currentColor.toUpperCase() : '';
-    rgbToggle.style.outline = useRGB ? '2px solid rgba(255,255,255,.08)' : 'none';
-    widthRange.value = brushWidth;
-  }
-
-  // hex input handler
-  hexInput.addEventListener('input', (e)=>{
-    const val = (e.target.value || '').trim().toUpperCase();
-    if(!val.startsWith('#')) {
-      // allow user type without #
-      if(val.length <=6 && /^[0-9A-F]*$/.test(val)) {
-        hexInput.value = '#' + val;
-      }
-    } else {
-      hexInput.value = val;
-    }
-    const v = hexInput.value.toUpperCase();
-    if(/^#[0-9A-F]{6}$/.test(v)){
-      currentColor = v;
-      useRGB = false;
-      updateUI();
-    }
-  });
-
-  // rgb toggle
-  rgbToggle.addEventListener('click', ()=>{
-    setUseRGB(!useRGB);
-  });
-
-  // width
-  widthRange.addEventListener('input', (e)=>{
-    brushWidth = Number(e.target.value) || 1;
-    updateUI();
-  });
-
-  // clear
-  clearBtn.addEventListener('click', ()=>{
-    paths.length = 0;
-    currentPath = null;
-    redrawAll();
-  });
-
-  // burger menu simple: toggle panel visibility by sliding (we keep panel centered for simplicity)
-  burger.addEventListener('click', ()=>{
-    const visible = panel.style.display !== 'none';
-    panel.style.display = visible ? 'none' : 'block';
-    // keep snow and canvas working underneath; panel toggled
-  });
-
   // initial UI state
-  setUseRGB(false);
   updateUI();
 
-  // expose for debug (optional)
-  window.__lv = { paths, clear: ()=>{ paths.length=0; redrawAll(); } };
+  // expose debug
+  window.__canvasApp = { paths, clear: ()=>{ paths.length=0; redraw(); } };
+
 })();
 </script>
 </body>
