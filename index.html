@@ -1,224 +1,262 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
-<title>Canvas</title>
-
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no" />
+<title>lie2srvv — рисовашка</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
 <style>
-html,body{
-  margin:0;
-  padding:0;
-  overflow:hidden;
-  background:#0b0b0b;
-}
-
-canvas{
-  position:fixed;
-  inset:0;
-  touch-action:none;
-}
-
-#burger{
-  position:fixed;
-  bottom:15px;
-  left:50%;
-  transform:translateX(-50%);
-  width:56px;
-  height:56px;
-  border-radius:50%;
-  background:#1b1b1b;
-  color:#fff;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  font-size:22px;
-  cursor:pointer;
-  z-index:10;
-}
-
-#panel{
-  position:fixed;
-  bottom:90px;
-  left:50%;
-  transform:translateX(-50%);
-  background:#151515;
-  padding:12px;
-  border-radius:14px;
-  display:none;
-  z-index:10;
-}
-
-.row{
-  display:flex;
-  gap:8px;
-  justify-content:center;
-  margin-bottom:8px;
-}
-
-.btn{
-  width:34px;
-  height:34px;
-  border-radius:50%;
-  border:none;
-  cursor:pointer;
-}
-
-.control{
-  padding:6px 10px;
-  background:#222;
-  color:#fff;
-  border-radius:8px;
-  cursor:pointer;
-  border:none;
-  font-size:18px;
-}
-
-input[type=range]{
-  width:120px;
-}
+  :root{--bg:#0a0a0a;--card:#141414;--muted:#9aa;--text:#e6e6e6}
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font-family:Montserrat,system-ui,Arial;overflow:hidden}
+  #canvasLayer { position:fixed; inset:0; z-index:5; touch-action:none; }
+  #ui { position:fixed; inset:0; z-index:20; display:flex; align-items:center; justify-content:center; pointer-events:none }
+  #panel { pointer-events:auto; background:var(--card); border-radius:18px; padding:16px; width:360px; max-width:92%; border:1px solid rgba(255,255,255,0.06); box-shadow:0 20px 40px rgba(0,0,0,0.6); }
+  .title{font-weight:700;font-size:20px;margin:0}
+  .nick{font-family:monospace;color:rgba(255,255,255,0.18);font-size:12px;margin:4px 0 8px}
+  .muted{color:var(--muted);font-size:13px}
+  .colors{display:flex;gap:8px;align-items:center;flex-wrap:nowrap;overflow-x:auto;padding:14px 6px}
+  .colors::-webkit-scrollbar{height:6px}
+  .sw{width:34px;height:34px;border-radius:50%;border:1px solid rgba(255,255,255,0.08);cursor:pointer;outline:none;flex:0 0 auto}
+  .sw.active{transform:scale(1.14); box-shadow:0 8px 20px rgba(0,0,0,0.6); border-color:#fff}
+  .hex{width:84px;padding:6px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:#0f0f0f;color:var(--text);text-transform:uppercase}
+  .rgbBtn{padding:6px 10px;border-radius:10px;border:none;cursor:pointer;background:linear-gradient(90deg,#f00,#ff0,#0f0,#0ff,#00f,#f0f,#f00)}
+  .controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:center;margin-top:10px}
+  .controls .left{display:flex;gap:8px;align-items:center}
+  .clear{padding:8px 12px;border-radius:10px;background:#fff;color:#000;border:none;cursor:pointer}
+  .slider{width:140px}
+  .sizeControl{display:flex;align-items:center;gap:8px;white-space:nowrap}
+  .paletteBtn{padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:var(--text);cursor:pointer}
+  #burger{position:fixed;left:50%;transform:translateX(-50%);bottom:14px;z-index:30;width:56px;height:56px;border-radius:999px;background:#1a1a1a;border:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:0.7;pointer-events:auto}
+  #burger:active{transform:translateX(-50%) scale(.98)}
+  .hint{font-size:12px;color:var(--muted);text-align:center;margin-top:8px}
 </style>
 </head>
-
 <body>
+<canvas id="canvasLayer"></canvas>
 
-<canvas id="canvas"></canvas>
+<div id="ui">
+  <div id="panel">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div class="title">lie2srvv</div>
+        <div class="nick">@lie2srvv</div>
+      </div>
+    </div>
 
-<div id="panel">
+    <p class="muted" style="margin:8px 0">Александр, 16 лет. Увлекаюсь программированием, можете порисовать на этом сайте, если скучно :)</p>
 
-  <!-- верх -->
-  <div class="row">
-    <button class="btn" style="background:#fff" onclick="setColor('#fff')"></button>
-    <button class="btn" style="background:#000" onclick="setColor('#000')"></button>
-    <button class="control" onclick="setEraser()">🩹</button>
+    <div style="margin-top:8px">
+      <div class="muted" style="margin-bottom:6px">Цвета</div>
+      <div class="colors" id="palette"></div>
+
+      <div class="controls" id="controlPanel">
+        <div class="left">
+          <label class="muted" style="margin-right:6px">HEX</label>
+          <input id="hex" class="hex" type="text" maxlength="7" placeholder="#FFFFFF" />
+          <button id="rgb" class="rgbBtn" title="Динамический RGB">RGB</button>
+        </div>
+
+        <div class="sizeControl">
+          <label class="muted">Толщина</label>
+          <input id="width" class="slider" type="range" min="1" max="40" value="4" />
+        </div>
+
+        <button id="openPalette" class="paletteBtn" title="Открыть круговую палитру">Палитра</button>
+        <button id="undo" class="paletteBtn">⤺</button>
+        <button id="redo" class="paletteBtn">⤻</button>
+        <button id="eraserBtn" class="paletteBtn">Ластик</button>
+        <button id="clear" class="clear">Очистить</button>
+      </div>
+
+      <div class="hint">Нажми ☰ (ПКМ для ПК), чтобы скрыть / показать панель. Чтобы рисовать — коснись и тяни по экрану.</div>
+    </div>
   </div>
-
-  <!-- радуга -->
-  <div class="row">
-    <button class="btn" style="background:red" onclick="setColor('red')"></button>
-    <button class="btn" style="background:orange" onclick="setColor('orange')"></button>
-    <button class="btn" style="background:yellow" onclick="setColor('yellow')"></button>
-    <button class="btn" style="background:green" onclick="setColor('green')"></button>
-    <button class="btn" style="background:cyan" onclick="setColor('cyan')"></button>
-    <button class="btn" style="background:blue" onclick="setColor('blue')"></button>
-    <button class="btn" style="background:violet" onclick="setColor('violet')"></button>
-  </div>
-
-  <!-- фон -->
-  <div class="row">
-    <button class="control" onclick="toggleBW()">Фон ч/б</button>
-  </div>
-
-  <!-- undo redo -->
-  <div class="row">
-    <button class="control" onclick="undo()">⟲</button>
-    <button class="control" onclick="redo()">⟳</button>
-  </div>
-
-  <!-- толщина -->
-  <div class="row">
-    <input type="range" min="1" max="40" value="4" oninput="lineWidth=this.value">
-  </div>
-
 </div>
 
-<div id="burger">☰</div>
+<button id="burger" aria-label="menu">☰</button>
 
 <script>
-const canvas=document.getElementById('canvas');
-const ctx=canvas.getContext('2d');
+(function(){
+  const canvas = document.getElementById('canvasLayer');
+  const ctx = canvas.getContext('2d', { alpha: true });
+  const dpr = Math.max(1, window.devicePixelRatio || 1);
 
-function resize(){
-  canvas.width=innerWidth;
-  canvas.height=innerHeight;
-  redraw();
-}
-resize();
-addEventListener('resize',resize);
+  const paletteEl = document.getElementById('palette');
+  const hexEl = document.getElementById('hex');
+  const rgbBtn = document.getElementById('rgb');
+  const widthEl = document.getElementById('width');
+  const clearBtn = document.getElementById('clear');
+  const eraserBtn = document.getElementById('eraserBtn');
+  const undoBtn = document.getElementById('undo');
+  const redoBtn = document.getElementById('redo');
 
-let color='#fff';
-let lineWidth=4;
-let drawing=false;
-let eraser=false;
+  const TOP_COLORS = ['#FFFFFF','#000000'];
+  const BOTTOM_COLORS = ['#FF3B30','#FF9500','#FFCC00','#4CD964','#5AC8FA','#007AFF','#AF52DE'];
 
-let strokes=[];
-let redoStack=[];
-let current=null;
+  let currentColor = '#FFFFFF';
+  let useRGB = false;
+  let brushWidth = Number(widthEl.value) || 4;
+  let hueBase = 0;
+  let drawing = false;
+  let currentPath = null;
+  let isEraser = false;
 
-canvas.onpointerdown=e=>{
-  drawing=true;
-  current={color,eraser,w:lineWidth,points:[pos(e)]};
-};
+  const paths = [];
+  const undoStack = [];
+  const redoStack = [];
 
-canvas.onpointermove=e=>{
-  if(!drawing)return;
-  current.points.push(pos(e));
-  redraw();
-};
+  function resizeCanvas(){
+    const w = innerWidth, h = innerHeight;
+    canvas.style.width = w + 'px';
+    canvas.style.height = h + 'px';
+    canvas.width = Math.round(w * dpr);
+    canvas.height = Math.round(h * dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    redraw();
+  }
+  window.addEventListener('resize', resizeCanvas);
+  resizeCanvas();
 
-onpointerup=()=>{
-  if(!drawing)return;
-  drawing=false;
-  strokes.push(current);
-  redoStack=[];
-};
+  function renderPalette(){
+    paletteEl.innerHTML='';
+    TOP_COLORS.concat(BOTTOM_COLORS).forEach(col=>{
+      const b = document.createElement('button');
+      b.className='sw';
+      b.style.background = col;
+      b.dataset.color = col;
+      b.addEventListener('click', ()=>{
+        isEraser = false; useRGB=false; currentColor = col; updateUI();
+      });
+      paletteEl.appendChild(b);
+    });
+  }
+  renderPalette();
 
-function pos(e){
-  return {x:e.clientX,y:e.clientY};
-}
+  function updateUI(){
+    Array.from(paletteEl.querySelectorAll('.sw')).forEach(el=>el.classList.remove('active'));
+    const btn = paletteEl.querySelector(`.sw[data-color="${currentColor}"]`);
+    if(btn) btn.classList.add('active');
+    hexEl.value = (!useRGB)?currentColor.toUpperCase():'';
+    widthEl.value = brushWidth;
+  }
+  updateUI();
 
-function redraw(){
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  strokes.forEach(s=>{
-    ctx.save();
-    if(s.eraser) ctx.globalCompositeOperation='destination-out';
-    ctx.beginPath();
-    ctx.lineWidth=s.w;
-    ctx.lineCap='round';
-    ctx.strokeStyle=s.color;
-    s.points.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));
-    ctx.stroke();
-    ctx.restore();
+  hexEl.addEventListener('input', e=>{
+    let v = e.target.value.toUpperCase();
+    if(!v.startsWith('#')) v='#'+v;
+    v=v.replace(/[^#0-9A-F]/g,'').slice(0,7);
+    e.target.value=v;
+    if(/^#[0-9A-F]{6}$/.test(v)){
+      currentColor=v; useRGB=false; isEraser=false; updateUI();
+    }
   });
-}
+  rgbBtn.addEventListener('click', ()=>{ useRGB=!useRGB; updateUI(); });
+  widthEl.addEventListener('input', e=>{ brushWidth=Number(e.target.value)||1; updateUI(); });
 
-function setColor(c){
-  color=c;
-  eraser=false;
-}
+  clearBtn.addEventListener('click', ()=>{
+    undoStack.push(JSON.parse(JSON.stringify(paths)));
+    redoStack.length=0;
+    paths.length=0;
+    redraw();
+  });
 
-function setEraser(){
-  eraser=true;
-}
+  eraserBtn.addEventListener('click', ()=>{ isEraser = true; });
 
-function undo(){
-  if(!strokes.length)return;
-  redoStack.push(strokes.pop());
-  redraw();
-}
+  function getPos(e){
+    const rect = canvas.getBoundingClientRect();
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  }
 
-function redo(){
-  if(!redoStack.length)return;
-  strokes.push(redoStack.pop());
-  redraw();
-}
+  function redraw(){
+    ctx.clearRect(0,0,canvas.width/dpr,canvas.height/dpr);
+    for(const path of paths){
+      if(path.isRGB){
+        for(let i=0;i<path.pts.length-1;i++){
+          const hue = (path.hueStart+i*2+hueBase)%360;
+          drawSegment(ctx, path.pts[i], path.pts[i+1], `hsl(${hue},100%,60%)`, path.width);
+        }
+      } else {
+        ctx.beginPath();
+        ctx.lineWidth = path.width;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.strokeStyle = path.color;
+        ctx.moveTo(path.pts[0].x,path.pts[0].y);
+        for(let i=1;i<path.pts.length;i++) ctx.lineTo(path.pts[i].x,path.pts[i].y);
+        ctx.stroke();
+      }
+    }
+  }
 
-let whiteBg=false;
-function toggleBW(){
-  whiteBg=!whiteBg;
-  document.body.style.background=whiteBg?'#fff':'#000';
-}
+  function drawSegment(ctx,p1,p2,style,width){
+    ctx.beginPath();
+    ctx.lineWidth=width;
+    ctx.lineCap='round';
+    ctx.lineJoin='round';
+    ctx.strokeStyle=style;
+    ctx.moveTo(p1.x,p1.y);
+    ctx.lineTo(p2.x,p2.y);
+    ctx.stroke();
+  }
 
-const panel=document.getElementById('panel');
-const burger=document.getElementById('burger');
+  function eraseAtPoint(pt,radius){
+    for(let i=paths.length-1;i>=0;i--){
+      const path=paths[i];
+      for(let p of path.pts){
+        if(Math.hypot(p.x-pt.x,p.y-pt.y)<=radius){ paths.splice(i,1); break; }
+      }
+    }
+  }
 
-burger.onclick=()=>panel.style.display=panel.style.display==='none'?'block':'none';
+  canvas.addEventListener('pointerdown', e=>{
+    drawing=true;
+    const pos=getPos(e);
+    if(isEraser){
+      eraseAtPoint(pos,brushWidth); redraw();
+    } else {
+      currentPath={ pts:[pos], isRGB:useRGB, hueStart:hueBase, color:currentColor, width:brushWidth };
+    }
+  });
 
-document.addEventListener('contextmenu',e=>{
-  e.preventDefault();
-  burger.onclick();
-});
+  canvas.addEventListener('pointermove', e=>{
+    if(!drawing) return;
+    const pos=getPos(e);
+    if(isEraser){ eraseAtPoint(pos,brushWidth); redraw(); }
+    else currentPath.pts.push(pos);
+  });
+
+  canvas.addEventListener('pointerup', ()=>{
+    drawing=false;
+    if(currentPath && currentPath.pts.length){ 
+      undoStack.push(JSON.parse(JSON.stringify(paths)));
+      redoStack.length=0;
+      paths.push(currentPath); 
+      currentPath=null; 
+      redraw(); 
+    }
+  });
+
+  undoBtn.addEventListener('click', ()=>{
+    if(undoStack.length){
+      redoStack.push(JSON.parse(JSON.stringify(paths)));
+      paths.splice(0, paths.length, ...undoStack.pop());
+      redraw();
+    }
+  });
+
+  redoBtn.addEventListener('click', ()=>{
+    if(redoStack.length){
+      undoStack.push(JSON.parse(JSON.stringify(paths)));
+      paths.splice(0, paths.length, ...redoStack.pop());
+      redraw();
+    }
+  });
+
+  (function animate(){ hueBase=(hueBase+1)%360; redraw(); requestAnimationFrame(animate); })();
+
+})();
 </script>
-
 </body>
 </html>
