@@ -11,22 +11,17 @@
   *{box-sizing:border-box}
   html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font-family:Montserrat,system-ui,Arial;overflow:hidden}
   /* слои */
-  /* снег над фоном, но под холстом */
-  #snow { position:fixed; inset:0; pointer-events:none; z-index:4 }
-  /* основной холст (рисунок) */
-  #canvasLayer { position:fixed; inset:0; z-index:5; touch-action:none; }
-  /* отдельный холст для следов ластика (наложение цвета фона) — над основным холстом, чтобы его можно было очищать */
-  #eraserLayer { position:fixed; inset:0; z-index:6; pointer-events:none; }
-  /* UI поверх всего */
-  #ui { position:fixed; inset:0; z-index:20; display:flex; align-items:center; justify-content:center; pointer-events:none }
-  /* панель настроек — pointer-events включены */
+  #snow { position:fixed; inset:0; pointer-events:none; z-index:4 } /* было 1 -> 4, чтобы снег был поверх фона */
+  #canvasLayer { position:fixed; inset:0; z-index:5; touch-action:none; } /* холст */
+  #eraserLayer { position:fixed; inset:0; z-index:6; pointer-events:none; } /* слой следов ластика (отдельно) */
+  #ui { position:fixed; inset:0; z-index:20; display:flex; align-items:center; justify-content:center; pointer-events:none } /* UI поверх */
+  /* панель настроек — небольшой card, pointer-events включены */
   #panel { pointer-events:auto; background:var(--card); border-radius:18px; padding:16px; width:360px; max-width:92%; border:1px solid rgba(255,255,255,0.06); box-shadow:0 20px 40px rgba(0,0,0,0.6); }
   .title{font-weight:700;font-size:20px;margin:0}
   .nick{font-family:monospace;color:rgba(255,255,255,0.18);font-size:12px;margin:4px 0 8px}
   .muted{color:var(--muted);font-size:13px}
   /* palette */
-  /* увеличил padding, чтобы при scale кружок не обрезался */
-  .colors{display:flex;gap:8px;align-items:center;flex-wrap:nowrap;overflow-x:auto;padding:14px 6px}
+  .colors{display:flex;gap:8px;align-items:center;flex-wrap:nowrap;overflow-x:auto;padding:12px 0 10px} /* увеличил padding для визуала, чтобы кнопки при scale не обрезались */
   .colors::-webkit-scrollbar{height:6px}
   .sw{width:34px;height:34px;border-radius:50%;border:1px solid rgba(255,255,255,0.08);cursor:pointer;outline:none;flex:0 0 auto}
   .sw.active{transform:scale(1.14); box-shadow:0 8px 20px rgba(0,0,0,0.6); border-color:#fff}
@@ -37,17 +32,19 @@
   .clear{padding:8px 12px;border-radius:10px;background:#fff;color:#000;border:none;cursor:pointer}
   .slider{width:140px}
   .sizeControl{display:flex;align-items:center;gap:8px;white-space:nowrap}
+  /* палитра-кнопка */
   .paletteBtn{padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:var(--text);cursor:pointer}
   /* всплывающая круговая палитра */
-  #wheelPopup{position:fixed;z-index:31;left:50%;transform:translateX(-50%);bottom:90px;background:linear-gradient(180deg,#151515,#0f0f0f);padding:10px;border-radius:14px;border:1px solid rgba(255,255,255,0.06);box-shadow:0 20px 60px rgba(0,0,0,0.7);display:none;pointer-events:auto}
+  #wheelPopup{position:fixed;z-index:31;left:50%;transform:translateX(-50%);bottom:90px;background:linear-gradient(180deg,#151515,#0f0f0f);padding:12px 12px 18px;border-radius:14px;border:1px solid rgba(255,255,255,0.06);box-shadow:0 20px 60px rgba(0,0,0,0.7);display:none}
   #colorWheel{display:block;border-radius:50%;background:transparent}
   #wheelClose{margin-top:8px;padding:6px 8px;border-radius:8px;border:none;background:#222;color:var(--text);cursor:pointer}
-  /* центральная кнопка Ч/Б внутри палитры */
-  #bwToggle{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:35;width:72px;height:72px;border-radius:50%;border:2px solid rgba(255,255,255,0.06);background:linear-gradient(180deg,#fff,#eee);display:flex;align-items:center;justify-content:center;cursor:pointer;font-weight:700;color:#000;pointer-events:auto}
+  /* центральная кнопка Ч/Б внутри палитры (накладывается поверх кольца) */
+  #bwToggle{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:32;width:72px;height:72px;border-radius:50%;border:2px solid rgba(255,255,255,0.06);background:linear-gradient(180deg,#fff,#eee);display:flex;align-items:center;justify-content:center;cursor:pointer;font-weight:700;color:#000}
   #bwToggle.black{background:#000;color:#fff}
   /* burger снизу по центру */
-  #burger{position:fixed;left:50%;transform:translateX(-50%);bottom:14px;z-index:30;width:56px;height:56px;border-radius:999px;background:#1a1a1a;border:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:0.7;pointer-events:auto}
+  #burger{position:fixed;left:50%;transform:translateX(-50%);bottom:14px;z-index:30;width:56px;height:56px;border-radius:999px;background:#1a1a1a;border:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:0.7}
   #burger:active{transform:translateX(-50%) scale(.98)}
+  /* подсказка */
   .hint{font-size:12px;color:var(--muted);text-align:center;margin-top:8px}
 </style>
 </head>
@@ -56,6 +53,7 @@
   <canvas id="canvasLayer"></canvas>
   <canvas id="eraserLayer"></canvas>
 
+  <!-- UI: панель в центре (pointer-events = auto) -->
   <div id="ui">
     <div id="panel">
       <div style="display:flex;justify-content:space-between;align-items:center">
@@ -94,14 +92,16 @@
     </div>
   </div>
 
-  <div id="wheelPopup" aria-hidden="true">
+  <!-- всплывающая круговая палитра -->
+  <div id="wheelPopup">
     <div style="position:relative; width:240px; height:240px;">
       <canvas id="colorWheel" width="240" height="240"></canvas>
-      <button id="bwToggle" title="Ч/Б" aria-pressed="false">Б/Ч</button>
+      <button id="bwToggle" title="Ч/Б">Б/Ч</button>
     </div>
     <div style="text-align:center"><button id="wheelClose" aria-label="Закрыть">Закрыть</button></div>
   </div>
 
+  <!-- бургер внизу по центру -->
   <button id="burger" aria-label="menu">☰</button>
 
 <script>
@@ -133,7 +133,6 @@
 
   function drawSnow(){
     if(!snowEnabled) return;
-    // снег прозрачный и рисуется на собственном слое поверх body, но под холстами
     snowCtx.clearRect(0,0,snowCanvas.width,snowCanvas.height);
     snowCtx.fillStyle = '#fff';
     snowflakes.forEach(f=>{
@@ -177,7 +176,7 @@
   const wheelClose = document.getElementById('wheelClose');
   const bwToggle = document.getElementById('bwToggle');
 
-  // palette: 1 white + 1 black + rainbow
+  // palette: 1 white + 7 rainbow
   const TOP_COLORS = ['#FFFFFF','#000000'];
   const BOTTOM_COLORS = ['#FF3B30','#FF9500','#FFCC00','#4CD964','#5AC8FA','#007AFF','#AF52DE'];
 
@@ -189,10 +188,9 @@
   let drawing = false;
   let currentPath = null;
   let isEraser = false;
-  const paths = []; // обычные пути
-  const eraserPaths = []; // пути ластика (отрисовка фоном на отдельном холсте)
-  let currentBgHex = getComputedStyle(document.documentElement).getPropertyValue('--bg') || '#0a0a0a';
-  currentBgHex = currentBgHex.trim();
+  const paths = []; // сохраняем обычные пути
+  const eraserPaths = []; // сохраняем пути-наложения ластика (они рисуются на eraserCanvas и очищаются при смене фона)
+  let currentBgHex = '#0a0a0a'; // текущий фон (в hex), по умолчанию соответствует :root
 
   // canvas sizing
   function resizeCanvas(){
@@ -209,25 +207,26 @@
     eraserCanvas.height = Math.round(h * dpr);
     eraserCtx.setTransform(dpr,0,0,dpr,0,0);
 
-    redraw();
-    redrawEraserLayer();
+    redraw(); // redraw after resize
   }
   window.addEventListener('resize', resizeCanvas);
   resizeCanvas();
 
-  // build palette UI (выполняем как раньше, чтобы цвета были видимы)
+  // build palette UI
   function renderPalette(){
     paletteEl.innerHTML = '';
 
+    // контейнер палитры — вертикально, без горизонтального скролла
     paletteEl.style.display = 'flex';
     paletteEl.style.flexDirection = 'column';
     paletteEl.style.overflowX = 'hidden';
 
+    // первая строка: белый, чёрный, ластик
     const row1 = document.createElement('div');
     row1.style.display = 'flex';
     row1.style.flexWrap = 'nowrap';
     row1.style.gap = '8px';
-    row1.style.marginBottom = '8px';
+    row1.style.marginBottom = '10px';
     row1.style.alignItems = 'center';
 
     TOP_COLORS.forEach(col => {
@@ -250,6 +249,7 @@
     });
     row1.appendChild(eraser);
 
+    // вторая строка: цвета радуги
     const row2 = document.createElement('div');
     row2.style.display = 'flex';
     row2.style.flexWrap = 'wrap';
@@ -270,6 +270,7 @@
   renderPalette();
 
   function updateUI(){
+    // clear actives
     Array.from(paletteEl.querySelectorAll('.sw, .paletteBtn')).forEach(el=> el.classList.remove('active'));
     if(isEraser){
       const er = paletteEl.querySelector('[data-eraser]'); if(er) er.classList.add('active');
@@ -278,6 +279,7 @@
       const btn = paletteEl.querySelector(`.sw[data-color="${c}"]`);
       if(btn) btn.classList.add('active');
     }
+    // set hex only if color is hex like #RRGGBB
     if(!useRGB && typeof currentColor === 'string' && /^#([0-9a-fA-F]{6})$/.test(currentColor.trim())){
       hexEl.value = currentColor.toUpperCase();
     } else {
@@ -288,10 +290,11 @@
   }
   updateUI();
 
-  // hex input
+  // validate hex input
   hexEl.addEventListener('input', (e)=>{
     let v = e.target.value.toUpperCase();
     if(!v.startsWith('#')) v = '#' + v;
+    // keep only # + hex digits
     v = v.replace(/[^#0-9A-F]/g,'').slice(0,7);
     e.target.value = v;
     if(/^#[0-9A-F]{6}$/.test(v)){
@@ -302,10 +305,13 @@
     }
   });
 
+  // rgb toggle
   rgbBtn.addEventListener('click', ()=>{ useRGB = !useRGB; if(useRGB) hexEl.value = ''; updateUI(); });
+
+  // width
   widthEl.addEventListener('input', (e)=>{ brushWidth = Number(e.target.value)||1; updateUI(); });
 
-  // clear both layers
+  // clear (очищает оба слоя)
   clearBtn.addEventListener('click', ()=>{ paths.length = 0; eraserPaths.length = 0; currentPath = null; eraserCtx.clearRect(0,0,eraserCanvas.width/dpr, eraserCanvas.height/dpr); redraw(); });
 
   // burger toggle
@@ -314,25 +320,29 @@
     panel.style.display = visible ? 'none' : 'block';
   });
 
-  // contextmenu toggle
+  // NEW: open/close panel on right-click (contextmenu) — prevent default context menu and toggle panel
   window.addEventListener('contextmenu', (e) => {
     e.preventDefault();
     const visible = panel.style.display !== 'none';
     panel.style.display = visible ? 'none' : 'block';
   });
 
-  // pointer handling
+  // pointer events (unified)
   canvas.style.touchAction = 'none';
   canvas.addEventListener('pointerdown', (e)=>{
+    // only primary pointers
     if(e.button !== undefined && e.button !== 0) return;
+    // start drawing
     drawing = true;
     const pos = getPos(e);
     const hueStart = hueBase;
     if(isEraser){
       currentPath = { pts: [pos], width: brushWidth };
+      // we will store eraser path and draw on eraserCanvas (overlay colored as background)
     } else {
       currentPath = { pts: [pos], isRGB: useRGB, hueStart: hueStart, color: currentColor, width: brushWidth };
     }
+    // capture pointer
     try { e.target.setPointerCapture(e.pointerId); } catch(_) {}
   }, { passive:false });
 
@@ -352,7 +362,7 @@
     if(currentPath && currentPath.pts.length) {
       if(isEraser){
         eraserPaths.push(currentPath);
-        // сразу отрисовать путь ластика на eraserLayer (цвет — текущий фон)
+        // draw immediately on eraser layer
         drawEraserPath(currentPath, currentBgHex);
       } else {
         paths.push(currentPath);
@@ -366,6 +376,7 @@
     if(drawing) { drawing = false; currentPath = null; }
   }, { passive:false });
 
+  // helper: position relative to canvas (CSS px)
   function getPos(e){
     const rect = canvas.getBoundingClientRect();
     const clientX = (e.clientX !== undefined) ? e.clientX : (e.touches && e.touches[0].clientX);
@@ -373,6 +384,7 @@
     return { x: clientX - rect.left, y: clientY - rect.top };
   }
 
+  // draw helpers
   function drawSegmentToCtx(targetCtx, p1, p2, style, width){
     targetCtx.beginPath();
     targetCtx.lineWidth = width;
@@ -384,7 +396,7 @@
     targetCtx.stroke();
   }
 
-  // отрисовка ластика: рисуем линию цветом текущего фона на отдельном холсте (eraserLayer)
+  // draw eraser path onto eraserCanvas as overlay with current background color
   function drawEraserPath(path, bgHex){
     const pts = path.pts;
     eraserCtx.save();
@@ -392,7 +404,7 @@
     eraserCtx.lineWidth = path.width;
     eraserCtx.lineCap = 'round';
     eraserCtx.lineJoin = 'round';
-    eraserCtx.strokeStyle = bgHex || '#000';
+    eraserCtx.strokeStyle = bgHex;
     eraserCtx.beginPath();
     eraserCtx.moveTo(pts[0].x, pts[0].y);
     for(let i=1;i<pts.length;i++){
@@ -402,11 +414,15 @@
     eraserCtx.restore();
   }
 
+  // redraw all paths + current path
   function redraw(){
+    // clear main canvas in CSS px coords
     ctx.clearRect(0,0,canvas.width/dpr, canvas.height/dpr);
 
+    // draw saved paths
     for(const path of paths){
       if(path.isRGB){
+        // draw each segment with hue variation
         const pts = path.pts;
         for(let i=0;i<pts.length-1;i++){
           const hue = (path.hueStart + i*2 + hueBase) % 360;
@@ -424,42 +440,52 @@
       }
     }
 
-    // текущий путь (если рисуем)
-    if(currentPath && !isEraser){
-      if(currentPath.isRGB){
-        const pts = currentPath.pts;
-        for(let i=0;i<pts.length-1;i++){
-          const hue = (currentPath.hueStart + i*2 + hueBase) % 360;
-          drawSegmentToCtx(ctx, pts[i], pts[i+1], `hsl(${hue},100%,60%)`, currentPath.width);
-        }
+    // draw current path live (if drawing)
+    if(currentPath){
+      if(isEraser){
+        // draw preview on eraserCanvas (we want live feedback)
+        // re-render eraser layer fully from eraserPaths + currentPath
+        redrawEraserLayer();
       } else {
-        ctx.beginPath();
-        ctx.lineWidth = currentPath.width;
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-        ctx.strokeStyle = currentPath.color;
-        ctx.moveTo(currentPath.pts[0].x, currentPath.pts[0].y);
-        for(let i=1;i<currentPath.pts.length;i++) ctx.lineTo(currentPath.pts[i].x, currentPath.pts[i].y);
-        ctx.stroke();
+        if(currentPath.isRGB){
+          const pts = currentPath.pts;
+          for(let i=0;i<pts.length-1;i++){
+            const hue = (currentPath.hueStart + i*2 + hueBase) % 360;
+            drawSegmentToCtx(ctx, pts[i], pts[i+1], `hsl(${hue},100%,60%)`, currentPath.width);
+          }
+        } else {
+          ctx.beginPath();
+          ctx.lineWidth = currentPath.width;
+          ctx.lineCap = 'round';
+          ctx.lineJoin = 'round';
+          ctx.strokeStyle = currentPath.color;
+          ctx.moveTo(currentPath.pts[0].x, currentPath.pts[0].y);
+          for(let i=1;i<currentPath.pts.length;i++) ctx.lineTo(currentPath.pts[i].x, currentPath.pts[i].y);
+          ctx.stroke();
+        }
       }
     }
   }
 
+  // redraw eraser layer from saved eraserPaths
   function redrawEraserLayer(){
-    // перерисовываем полностью слой ластика (чтобы показать live-просмотр и поддержать очистку)
     eraserCtx.clearRect(0,0,eraserCanvas.width/dpr, eraserCanvas.height/dpr);
+    // draw saved eraserPaths
     for(const p of eraserPaths){
       drawEraserPath(p, currentBgHex);
     }
+    // draw current in-progress if any
     if(currentPath && isEraser){
       drawEraserPath(currentPath, currentBgHex);
     }
   }
 
+  // loop: update hueBase for animated RGB + redraw
   (function animate(){
     hueBase = (hueBase + 1) % 360;
     redraw();
-    redrawEraserLayer();
+    // ensure eraser layer is up-to-date when not drawing current eraser
+    if(!drawing) redrawEraserLayer();
     requestAnimationFrame(animate);
   })();
 
@@ -472,15 +498,10 @@
     ctxw.clearRect(0,0,w,h);
 
     const radius = Math.min(cx,cy) - 2;
+    // create conic gradient for hue
     let grad = ctxw.createConicGradient(0, cx, cy);
     for(let i=0;i<=360;i+=1){ grad.addColorStop(i/360, `hsl(${i},100%,50%)`); }
     ctxw.fillStyle = grad;
-    ctxw.beginPath(); ctxw.arc(cx,cy,radius,0,Math.PI*2); ctxw.fill();
-
-    ctxw.globalCompositeOperation = 'destination-out';
-    ctxw.beginPath(); ctxw.arc(cx,cy,radius*0.45,0,Math.PI*2); ctxw.fill();
-    ctxw.globalCompositeOperation = 'source-over';
-
     ctxw.beginPath(); ctxw.arc(cx,cy,radius,0,Math.PI*2); ctxw.lineWidth = 2; ctxw.strokeStyle = 'rgba(0,0,0,0.25)'; ctxw.stroke();
   }
 
@@ -502,57 +523,80 @@
     const dist = Math.hypot(x,y);
     const radius = rect.width/2 - 2;
     const inner = radius * 0.45;
-      if(dist < inner || dist > radius) return;
-      let angle = Math.atan2(y,x) * 180 / Math.PI;
-      if(angle < 0) angle += 360;
-      const hue = angle;
-      const sat = Math.min(1, (dist - inner) / (radius - inner));
-      const light = 0.5;
-      const hex = hslToHex(hue, sat, light);
-      // установить фон и очистить следы ластика
-      setBackground(hex);
-      hideWheel();
-      // удалить слушатель одноразово
-      wheelCanvas.removeEventListener('click', onPick);
-    };
-    // добавляем временный обработчик только для выбора фона
-    wheelCanvas.addEventListener('click', onPick);
-  });
+    if(dist < inner || dist > radius) return; // outside ring
+    let angle = Math.atan2(y,x) * 180 / Math.PI; // -180..180
+    if(angle < 0) angle += 360;
+    const hue = angle;
+    const sat = Math.min(1, (dist - inner) / (radius - inner)); // map radius to saturation
+    const light = 0.5;
+    const hex = hslToHex(hue, sat, light);
+    // apply to current background color selection when in "фон" mode
+    currentColor = hex;
+    useRGB = false;
+    hexEl.value = hex;
+    updateUI();
+    // set background immediately when opened via openBg (openBg sets up onclick)
+    // close handled by caller
+  }
 
-  // кнопка Ч/Б: первый клик делает белый, если белый — делает чёрный
-  bwToggle.addEventListener('click', (e)=>{
-    e.stopPropagation();
-    const cur = (currentBgHex || '').toUpperCase();
-    if(cur !== '#FFFFFF'){
-      setBackground('#FFFFFF');
-      bwToggle.classList.remove('black');
-      bwToggle.setAttribute('aria-pressed', 'true');
-    } else {
-      setBackground('#000000');
-      bwToggle.classList.add('black');
-      bwToggle.setAttribute('aria-pressed', 'true');
-    }
-    // оставляем палитру открытой — пользователь видит результат
-  });
+  function showWheel(){
+    wheelPopup.style.display = 'block';
+    drawColorWheel();
+    // set bwToggle visual according to currentBgHex
+    bwToggle.classList.toggle('black', (currentBgHex.toUpperCase() === '#000000'));
+  }
+  function hideWheel(){ wheelPopup.style.display = 'none'; }
 
-  // при клике вне popup — закрыть
+  openPalette.addEventListener('click', ()=>{ if(wheelPopup.style.display==='block') hideWheel(); else showWheel(); });
+  wheelClose.addEventListener('click', hideWheel);
+  wheelCanvas.addEventListener('click', onWheelClick);
+  // close when clicking outside
   window.addEventListener('pointerdown', (e)=>{
     if(!wheelPopup || wheelPopup.style.display!=='block') return;
     if(e.target === openPalette || wheelPopup.contains(e.target)) return;
     hideWheel();
   });
 
-  // фон: при смене фона очищаем eraserLayer (следы ластика удаляются)
+  // initial UI state
+  updateUI();
+
+  // фон: apply and clear eraser overlay when changing bg
   function setBackground(color){
+    // accept hex or rgb strings
     if(typeof color === 'string'){
       currentBgHex = color;
     }
-    document.documentElement.style.setProperty('--bg', currentBgHex);
     document.body.style.background = currentBgHex;
-    // очищаем следы ластика (они были просто наложением цвета фона)
+    // при смене фона очищаем следы ластика (они были просто цветными наложениями)
     eraserPaths.length = 0;
     eraserCtx.clearRect(0,0,eraserCanvas.width/dpr, eraserCanvas.height/dpr);
   }
+
+  openBg.addEventListener('click', ()=>{
+    showWheel();
+    // when user clicks on wheel, immediately set background and close
+    wheelCanvas.onclick = (e)=>{
+      onWheelClick(e);
+      setBackground(currentColor);
+      // update bwToggle look
+      bwToggle.classList.toggle('black', (currentBgHex.toUpperCase() === '#000000'));
+      hideWheel();
+    };
+  });
+
+  // bwToggle logic: по нажатию первый раз делает белый, если уже белый — ставит чёрный
+  bwToggle.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    const cur = (currentBgHex || '').toUpperCase();
+    if(cur !== '#FFFFFF'){
+      setBackground('#FFFFFF');
+      bwToggle.classList.remove('black');
+    } else {
+      setBackground('#000000');
+      bwToggle.classList.add('black');
+    }
+    // после установки фона — обновить eraser overlay (оно очищено в setBackground)
+  });
 
   // snow toggle hookup
   const snowToggle = document.getElementById('snowToggle');
@@ -563,7 +607,11 @@
     if(window.setSnowEnabled) window.setSnowEnabled(snowToggle.checked);
   }
 
-  window.__canvasApp = { paths, eraserPaths, setBackground, clear: ()=>{ paths.length=0; eraserPaths.length=0; eraserCtx.clearRect(0,0,eraserCanvas.width/dpr, eraserCanvas.height/dpr); redraw(); } };
+  // Draw eraser/normal on pointermove live: we already store pts and redraw will render currentPath appropriately.
+  // But we also need to ensure eraser preview appears on eraser layer while drawing:
+  // We will redraw eraser layer inside the animation loop (redrawEraserLayer) for live preview.
+
+  window.__canvasApp = { paths, eraserPaths, clear: ()=>{ paths.length=0; eraserPaths.length=0; eraserCtx.clearRect(0,0,eraserCanvas.width/dpr, eraserCanvas.height/dpr); redraw(); } };
 
 })();
 </script>
