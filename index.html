@@ -13,12 +13,7 @@
   
   #snow { position:fixed; inset:0; pointer-events:none; z-index:4 }
   #canvasLayer { position:fixed; inset:0; z-index:5; touch-action:none; }
-  /* Слой ластика убран, так как теперь стираем напрямую */
   
-  #ui { position:fixed; inset:0; z-index:20; display:flex; align-items:center; justify-content:center; pointer-events:none }
-  #panel { pointer-events:auto; background:var(--card); border-radius:18px; padding:16px; width:360px; max-width:92%; border:1px solid rgba(255,255,255,0.06); box-shadow:0 20px 40px rgba(0,0,0,0.6); }
-  
-  /* Стили для стрелок Undo/Redo */
   #historyControls { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 40; display: flex; gap: 20px; pointer-events: none; }
   .histBtn { 
     pointer-events: auto; background: var(--card); border: 1px solid rgba(255,255,255,0.1); 
@@ -29,27 +24,27 @@
   .histBtn svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
   .histBtn:disabled { opacity: 0.3; cursor: not-allowed; }
 
+  #ui { position:fixed; inset:0; z-index:20; display:flex; align-items:center; justify-content:center; pointer-events:none }
+  #panel { pointer-events:auto; background:var(--card); border-radius:18px; padding:16px; width:360px; max-width:92%; border:1px solid rgba(255,255,255,0.06); box-shadow:0 20px 40px rgba(0,0,0,0.6); }
+  
   .title{font-weight:700;font-size:20px;margin:0}
   .nick{font-family:monospace;color:rgba(255,255,255,0.18);font-size:12px;margin:4px 0 8px}
   .muted{color:var(--muted);font-size:13px}
   
   .colors{display:flex;gap:8px;align-items:center;flex-wrap:nowrap;overflow-x:auto;padding:12px 0 10px}
-  .colors::-webkit-scrollbar{height:6px}
   .sw{width:34px;height:34px;border-radius:50%;border:1px solid rgba(255,255,255,0.08);cursor:pointer;outline:none;flex:0 0 auto}
   .sw.active{transform:scale(1.14); box-shadow:0 8px 20px rgba(0,0,0,0.6); border-color:#fff}
   .hex{width:84px;padding:6px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:#0f0f0f;color:var(--text);text-transform:uppercase}
   .rgbBtn{padding:6px 10px;border-radius:10px;border:none;cursor:pointer;background:linear-gradient(90deg,#f00,#ff0,#0f0,#0ff,#00f,#f0f,#f00)}
   .controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:center;margin-top:10px}
-  .sizeControl{display:flex;align-items:center;gap:8px;white-space:nowrap}
   .paletteBtn{padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:var(--text);cursor:pointer}
   .paletteBtn.active { background: #fff; color: #000; }
 
-  #wheelPopup{position:fixed;z-index:31;left:50%;transform:translateX(-50%);bottom:90px;background:linear-gradient(180deg,#151515,#0f0f0f);padding:12px 12px 18px;border-radius:14px;border:1px solid rgba(255,255,255,0.06);box-shadow:0 20px 60px rgba(0,0,0,0.7);display:none}
-  #colorWheel{display:block;border-radius:50%; background: #000;}
+  #wheelPopup{position:fixed;z-index:31;left:50%;transform:translateX(-50%);bottom:90px;background:#151515;padding:12px;border-radius:14px;border:1px solid rgba(255,255,255,0.06);box-shadow:0 20px 60px rgba(0,0,0,0.7);display:none}
+  #colorWheel{display:block;border-radius:50%; cursor: crosshair;}
   #bwToggle{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:32;width:72px;height:72px;border-radius:50%;border:2px solid rgba(255,255,255,0.06);background:linear-gradient(180deg,#fff,#eee);display:flex;align-items:center;justify-content:center;cursor:pointer;font-weight:700;color:#000}
   #bwToggle.black{background:#000;color:#fff}
   #burger{position:fixed;left:50%;transform:translateX(-50%);bottom:14px;z-index:30;width:56px;height:56px;border-radius:999px;background:#1a1a1a;border:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:0.7}
-  .hint{font-size:12px;color:var(--muted);text-align:center;margin-top:8px}
 </style>
 </head>
 <body>
@@ -57,42 +52,35 @@
   <canvas id="canvasLayer"></canvas>
 
   <div id="historyControls">
-    <button id="undoBtn" class="histBtn" title="Undo (Ctrl+Z)">
-      <svg viewBox="0 0 24 24"><path d="M9 14L4 9L9 4"/><path d="M20 20C20 14 16 9 4 9"/></svg>
-    </button>
-    <button id="redoBtn" class="histBtn" title="Redo (Ctrl+Y)">
-      <svg viewBox="0 0 24 24"><path d="M15 14L20 9L15 4"/><path d="M4 20C4 14 8 9 20 9"/></svg>
-    </button>
+    <button id="undoBtn" class="histBtn"><svg viewBox="0 0 24 24"><path d="M9 14L4 9L9 4"/><path d="M20 20C20 14 16 9 4 9"/></svg></button>
+    <button id="redoBtn" class="histBtn"><svg viewBox="0 0 24 24"><path d="M15 14L20 9L15 4"/><path d="M4 20C4 14 8 9 20 9"/></svg></button>
   </div>
 
   <div id="ui">
     <div id="panel">
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <div>
-          <div class="title">lie2srvv</div>
-          <div class="nick">@lie2srvv</div>
-        </div>
-      </div>
-      <p class="muted" style="margin:8px 0">Александр, 16 лет. Увлекаюсь программированием, можете порисовать на этом сайте, если скучно :)</p>
-      <div style="margin-top:8px">
-        <div class="muted" style="margin-bottom:6px">Цвета</div>
-        <div id="palette"></div>
+      <div class="title">lie2srvv</div>
+      <div class="nick">@lie2srvv</div>
+      <p class="muted">Александр, 16 лет. Увлекаюсь программированием. Можете порисовать на моём сайте, если вам скучно :)</p>
+      
+      <div style="margin-top:12px">
+        <div class="muted">Цвета</div>
+        <div id="palette" class="flex flex-col gap-2 py-2"></div>
+        
         <div class="controls">
-          <div style="display:flex;gap:8px;align-items:center">
+          <div class="flex gap-2 items-center">
             <label class="muted">HEX</label>
-            <input id="hex" class="hex" type="text" maxlength="7" placeholder="#FFFFFF" />
+            <input id="hex" class="hex" type="text" maxlength="7" />
             <button id="rgb" class="rgbBtn">RGB</button>
           </div>
-          <div class="sizeControl">
+          <div class="flex items-center gap-2">
             <label class="muted">Толщина</label>
-            <input id="width" style="width:100px" type="range" min="1" max="60" value="4" />
+            <input id="width" type="range" min="1" max="80" value="4" style="width:100px" />
           </div>
           <button id="openPalette" class="paletteBtn">Палитра</button>
           <label class="paletteBtn" for="snowToggle"><input id="snowToggle" type="checkbox" checked> Снег</label>
           <button id="openBg" class="paletteBtn">Фон</button>
-          <button id="clear" class="paletteBtn" style="background:#fff;color:#000;border:none">Очистить</button>
+          <button id="clear" class="paletteBtn" style="background:#fff;color:#000">Очистить</button>
         </div>
-        <div class="hint">Нажми ☰ (ПКМ), чтобы скрыть панель. Для отмены: Ctrl+Z.</div>
       </div>
     </div>
   </div>
@@ -114,186 +102,151 @@
   const ctx = c.getContext('2d');
   let snowEnabled = true;
   let snowflakes = [];
-  function resizeSnow(){ c.width = window.innerWidth; c.height = window.innerHeight; initSnow(); }
-  function initSnow(){ snowflakes = Array.from({length: 120}, () => ({ x: Math.random()*c.width, y: Math.random()*c.height, r: Math.random()*2+1, s: Math.random()*1+0.5 })); }
-  function drawSnow(){
-    if(!snowEnabled) return;
+
+  function resize(){ c.width = window.innerWidth; c.height = window.innerHeight; init(); }
+  function init(){ snowflakes = Array.from({length: 100}, () => ({ x: Math.random()*c.width, y: Math.random()*c.height, r: Math.random()*2+1, s: Math.random()*1+0.5 })); }
+  
+  function draw(){
+    if(!snowEnabled) { ctx.clearRect(0,0,c.width,c.height); return requestAnimationFrame(draw); }
     ctx.clearRect(0,0,c.width,c.height);
-    ctx.fillStyle = '#fff';
+    ctx.fillStyle = 'rgba(255,255,255,0.8)';
     snowflakes.forEach(f=>{
-      ctx.beginPath(); ctx.arc(f.x,f.y,f.r,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(f.x, f.y, f.r, 0, Math.PI*2); ctx.fill();
       f.y += f.s; if(f.y > c.height) f.y = -5;
     });
-    requestAnimationFrame(drawSnow);
+    requestAnimationFrame(draw);
   }
-  window.addEventListener('resize', resizeSnow);
-  resizeSnow(); drawSnow();
-  window.setSnowEnabled = function(v){ snowEnabled = !!v; if(!snowEnabled) ctx.clearRect(0,0,c.width,c.height); };
+  window.addEventListener('resize', resize);
+  resize(); draw();
+  
+  document.getElementById('snowToggle').onchange = (e) => snowEnabled = e.target.checked;
 })();
 
-/* ============ Drawing app ============ */
+/* ============ Drawing Core ============ */
 (function(){
-  const canvas = document.getElementById('canvasLayer');
-  const ctx = canvas.getContext('2d', { alpha: true });
-  const dpr = Math.max(1, window.devicePixelRatio || 1);
-
-  const paletteEl = document.getElementById('palette'), hexEl = document.getElementById('hex'), rgbBtn = document.getElementById('rgb');
-  const widthEl = document.getElementById('width'), clearBtn = document.getElementById('clear'), burger = document.getElementById('burger');
-  const panel = document.getElementById('panel'), wheelPopup = document.getElementById('wheelPopup'), wheelCanvas = document.getElementById('colorWheel');
-  const undoBtn = document.getElementById('undoBtn'), redoBtn = document.getElementById('redoBtn');
-
-  const TOP_COLORS = ['#FFFFFF','#000000'];
-  const BOTTOM_COLORS = ['#FF3B30','#FF9500','#FFCC00','#4CD964','#5AC8FA','#007AFF','#AF52DE'];
-
-  let currentColor = '#FFFFFF', useRGB = false, brushWidth = 4, hueBase = 0, drawing = false, isEraser = false;
+  const canvas = document.getElementById('canvasLayer'), ctx = canvas.getContext('2d', {alpha:true});
+  const dpr = window.devicePixelRatio || 1;
   let paths = [], redoStack = [], currentPath = null;
-  let currentBgHex = '#0a0a0a';
+  let currentColor = '#FFFFFF', brushWidth = 4, isEraser = false, useRGB = false, hueBase = 0;
+  let wheelMode = 'brush'; // 'brush' или 'bg'
 
-  function resizeCanvas(){
-    const w = innerWidth, h = innerHeight;
+  function resize(){
+    const w = window.innerWidth, h = window.innerHeight;
+    canvas.width = w * dpr; canvas.height = h * dpr;
     canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
-    canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
     ctx.setTransform(dpr,0,0,dpr,0,0);
     redraw();
   }
-  window.addEventListener('resize', resizeCanvas);
-  resizeCanvas();
-
-  function renderPalette(){
-    paletteEl.className = "flex flex-col gap-2";
-    const r1 = document.createElement('div'); r1.className = "flex gap-2 items-center";
-    TOP_COLORS.forEach(col => {
-      const b = document.createElement('button'); b.className = 'sw'; b.style.background = col;
-      b.onclick = () => { useRGB = false; isEraser = false; currentColor = col; updateUI(); };
-      r1.appendChild(b);
-    });
-    const er = document.createElement('button'); er.className = 'paletteBtn'; er.textContent = 'Ластик';
-    er.onclick = () => { isEraser = true; useRGB = false; updateUI(); };
-    r1.appendChild(er);
-    const r2 = document.createElement('div'); r2.className = "flex flex-wrap gap-2";
-    BOTTOM_COLORS.forEach(col => {
-      const b = document.createElement('button'); b.className = 'sw'; b.style.background = col;
-      b.onclick = () => { useRGB = false; isEraser = false; currentColor = col; updateUI(); };
-      r2.appendChild(b);
-    });
-    paletteEl.append(r1, r2);
-  }
-  renderPalette();
-
-  function updateUI(){
-    document.querySelectorAll('.sw').forEach(s => s.classList.remove('active'));
-    document.querySelectorAll('.paletteBtn').forEach(p => p.classList.remove('active'));
-    if(isEraser) document.querySelectorAll('.paletteBtn')[0].classList.add('active');
-    else {
-      const activeBtn = Array.from(document.querySelectorAll('.sw')).find(b => b.style.backgroundColor.toLowerCase() === currentColor.toLowerCase());
-      if(activeBtn) activeBtn.classList.add('active');
-    }
-    undoBtn.disabled = paths.length === 0;
-    redoBtn.disabled = redoStack.length === 0;
-  }
+  window.addEventListener('resize', resize);
+  resize();
 
   function redraw(){
     ctx.clearRect(0,0,canvas.width/dpr, canvas.height/dpr);
-    [...paths, currentPath].filter(Boolean).forEach(path => {
-      ctx.beginPath();
-      ctx.lineWidth = path.width;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      // ГЛАВНОЕ: если ластик, используем режим стирания
-      ctx.globalCompositeOperation = path.isEraser ? 'destination-out' : 'source-over';
-      
-      if(path.isRGB && !path.isEraser){
-        for(let i=0; i<path.pts.length-1; i++){
-          const hue = (path.hueStart + i*2 + hueBase) % 360;
-          ctx.strokeStyle = `hsl(${hue},100%,60%)`;
-          ctx.beginPath();
-          ctx.moveTo(path.pts[i].x, path.pts[i].y);
-          ctx.lineTo(path.pts[i+1].x, path.pts[i+1].y);
-          ctx.stroke();
+    [...paths, currentPath].filter(Boolean).forEach(p => {
+      ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.lineWidth = p.width;
+      ctx.globalCompositeOperation = p.isEraser ? 'destination-out' : 'source-over';
+      if(p.isRGB && !p.isEraser){
+        for(let i=0; i<p.pts.length-1; i++){
+          ctx.strokeStyle = `hsl(${(p.hueStart + i*2 + hueBase)%360},100%,60%)`;
+          ctx.beginPath(); ctx.moveTo(p.pts[i].x, p.pts[i].y); ctx.lineTo(p.pts[i+1].x, p.pts[i+1].y); ctx.stroke();
         }
       } else {
-        ctx.strokeStyle = path.color;
-        ctx.moveTo(path.pts[0].x, path.pts[0].y);
-        path.pts.forEach(p => ctx.lineTo(p.x, p.y));
-        ctx.stroke();
+        ctx.strokeStyle = p.color; ctx.beginPath(); ctx.moveTo(p.pts[0].x, p.pts[0].y);
+        p.pts.forEach(pt => ctx.lineTo(pt.x, pt.y)); ctx.stroke();
       }
     });
     ctx.globalCompositeOperation = 'source-over';
   }
 
-  function undo(){ if(paths.length){ redoStack.push(paths.pop()); redraw(); updateUI(); } }
-  function redo(){ if(redoStack.length){ paths.push(redoStack.pop()); redraw(); updateUI(); } }
+  /* Палитра и Интерфейс */
+  const pal = document.getElementById('palette'), hex = document.getElementById('hex');
+  const render = () => {
+    pal.innerHTML = '';
+    const row1 = document.createElement('div'); row1.className = 'flex gap-2';
+    ['#FFFFFF','#000000'].forEach(c => {
+      const b = document.createElement('button'); b.className='sw'; b.style.background=c;
+      b.onclick = () => { currentColor=c; isEraser=false; useRGB=false; updateUI(); };
+      row1.appendChild(b);
+    });
+    const er = document.createElement('button'); er.className='paletteBtn'; er.id='erBtn'; er.textContent='Ластик';
+    er.onclick = () => { isEraser=true; useRGB=false; updateUI(); };
+    row1.appendChild(er);
+    const row2 = document.createElement('div'); row2.className = 'flex flex-wrap gap-2';
+    ['#FF3B30','#FF9500','#FFCC00','#4CD964','#5AC8FA','#007AFF','#AF52DE'].forEach(c => {
+      const b = document.createElement('button'); b.className='sw'; b.style.background=c;
+      b.onclick = () => { currentColor=c; isEraser=false; useRGB=false; updateUI(); };
+      row2.appendChild(b);
+    });
+    pal.append(row1, row2);
+  };
+  
+  function updateUI(){
+    hex.value = isEraser ? '' : currentColor.toUpperCase();
+    document.getElementById('erBtn').classList.toggle('active', isEraser);
+    document.getElementById('undoBtn').disabled = paths.length === 0;
+    document.getElementById('redoBtn').disabled = redoStack.length === 0;
+  }
+  render(); updateUI();
 
-  canvas.addEventListener('pointerdown', (e) => {
+  /* Мышь / Тач */
+  canvas.onpointerdown = (e) => {
     if(e.button !== 0 && e.button !== undefined) return;
     drawing = true; redoStack = [];
-    const pos = { x: e.clientX, y: e.clientY };
-    currentPath = { pts: [pos], isRGB: useRGB, isEraser: isEraser, hueStart: hueBase, color: currentColor, width: brushWidth };
-  });
+    currentPath = { pts:[{x:e.clientX, y:e.clientY}], color:currentColor, width:brushWidth, isEraser, isRGB:useRGB, hueStart:hueBase };
+  };
+  window.onpointermove = (e) => { if(drawing && currentPath) currentPath.pts.push({x:e.clientX, y:e.clientY}); };
+  window.onpointerup = () => { if(drawing){ paths.push(currentPath); currentPath=null; drawing=false; updateUI(); } };
 
-  window.addEventListener('pointermove', (e) => {
-    if(!drawing) return;
-    currentPath.pts.push({ x: e.clientX, y: e.clientY });
-  });
+  /* Команды */
+  const undo = () => { if(paths.length){ redoStack.push(paths.pop()); redraw(); updateUI(); } };
+  const redo = () => { if(redoStack.length){ paths.push(redoStack.pop()); redraw(); updateUI(); } };
+  document.getElementById('undoBtn').onclick = undo;
+  document.getElementById('redoBtn').onclick = redo;
+  document.getElementById('clear').onclick = () => { paths=[]; redoStack=[]; redraw(); updateUI(); };
+  document.getElementById('rgb').onclick = () => { useRGB=!useRGB; isEraser=false; updateUI(); };
+  document.getElementById('width').oninput = (e) => brushWidth = e.target.value;
+  hex.onchange = (e) => { currentColor = e.target.value; isEraser=false; updateUI(); };
 
-  window.addEventListener('pointerup', () => {
-    if(!drawing) return;
-    drawing = false; paths.push(currentPath); currentPath = null; updateUI();
-  });
+  window.onkeydown = (e) => {
+    if(e.ctrlKey && (e.key==='z'||e.key==='я')) { e.preventDefault(); undo(); }
+    if(e.ctrlKey && (e.key==='y'||e.key==='н')) { e.preventDefault(); redo(); }
+  };
 
-  // Hotkeys
-  window.addEventListener('keydown', (e) => {
-    if(e.ctrlKey && (e.key === 'z' || e.key === 'я')) { e.preventDefault(); undo(); }
-    if(e.ctrlKey && (e.key === 'y' || e.key === 'н' || (e.shiftKey && (e.key === 'Z' || e.key === 'Я')))) { e.preventDefault(); redo(); }
-  });
-
-  undoBtn.onclick = undo; redoBtn.onclick = redo;
-  clearBtn.onclick = () => { paths = []; redoStack = []; redraw(); updateUI(); };
-  burger.onclick = () => panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
-  window.oncontextmenu = (e) => { e.preventDefault(); burger.onclick(); };
-
-  /* Круговая палитра */
+  /* Цветовой круг */
+  const wheel = document.getElementById('colorWheel'), wCtx = wheel.getContext('2d');
   function drawWheel(){
-    const c = wheelCanvas, x = 120, y = 120, r = 110, ctxw = c.getContext('2d');
-    ctxw.clearRect(0,0,240,240);
+    wCtx.clearRect(0,0,240,240);
     for(let i=0; i<360; i++){
-      ctxw.beginPath(); ctxw.moveTo(x,y);
-      ctxw.arc(x,y,r, (i*Math.PI)/180, ((i+2)*Math.PI)/180);
-      ctxw.fillStyle = `hsl(${i}, 100%, 50%)`; ctxw.fill();
+      wCtx.beginPath(); wCtx.moveTo(120,120);
+      wCtx.arc(120,120,110, (i*Math.PI)/180, ((i+2)*Math.PI)/180);
+      wCtx.fillStyle = `hsl(${i},100%,50%)`; wCtx.fill();
     }
   }
-  
-  document.getElementById('openPalette').onclick = () => {
-    wheelPopup.style.display = wheelPopup.style.display === 'block' ? 'none' : 'block';
-    if(wheelPopup.style.display === 'block') drawWheel();
-  };
 
-  wheelCanvas.onclick = (e) => {
-    const rect = wheelCanvas.getBoundingClientRect(), x = e.clientX - rect.left - 120, y = e.clientY - rect.top - 120;
-    const angle = Math.atan2(y, x) * (180/Math.PI);
-    currentColor = `hsl(${angle < 0 ? angle + 360 : angle}, 100%, 50%)`;
-    isEraser = false; useRGB = false; updateUI();
-  };
+  document.getElementById('openPalette').onclick = () => { wheelMode='brush'; document.getElementById('wheelPopup').style.display='block'; drawWheel(); };
+  document.getElementById('openBg').onclick = () => { wheelMode='bg'; document.getElementById('wheelPopup').style.display='block'; drawWheel(); };
+  document.getElementById('wheelClose').onclick = () => document.getElementById('wheelPopup').style.display='none';
 
-  document.getElementById('openBg').onclick = () => {
-    wheelPopup.style.display = 'block'; drawWheel();
-    wheelCanvas.onclick = (e) => {
-      const rect = wheelCanvas.getBoundingClientRect(), x = e.clientX - rect.left - 120, y = e.clientY - rect.top - 120;
-      const angle = Math.atan2(y, x) * (180/Math.PI);
-      currentBgHex = `hsl(${angle < 0 ? angle + 360 : angle}, 100%, 50%)`;
-      document.body.style.background = currentBgHex;
-    };
+  wheel.onclick = (e) => {
+    const r = wheel.getBoundingClientRect(), x = e.clientX-r.left-120, y = e.clientY-r.top-120;
+    const h = (Math.atan2(y,x)*180/Math.PI + 360) % 360;
+    const col = `hsl(${h},100%,50%)`;
+    // Конвертируем HSL в HEX для поля ввода
+    const dummy = document.createElement('div'); dummy.style.color = col; document.body.appendChild(dummy);
+    const rgb = getComputedStyle(dummy).color; document.body.removeChild(dummy);
+    const hexCol = '#' + rgb.match(/\d+/g).map(x => (+x).toString(16).padStart(2,'0')).join('');
+
+    if(wheelMode === 'brush'){ currentColor = hexCol; isEraser=false; updateUI(); }
+    else { document.body.style.background = hexCol; }
+    document.getElementById('wheelPopup').style.display='none';
   };
 
   document.getElementById('bwToggle').onclick = () => {
-    currentBgHex = (currentBgHex === '#ffffff' || currentBgHex === 'white') ? '#000000' : '#ffffff';
-    document.body.style.background = currentBgHex;
+    const cur = getComputedStyle(document.body).backgroundColor;
+    document.body.style.background = (cur === 'rgb(255, 255, 255)') ? '#000000' : '#ffffff';
   };
 
-  hexEl.oninput = (e) => { if(/^#[0-9A-F]{6}$/i.test(e.target.value)) { currentColor = e.target.value; isEraser = false; updateUI(); } };
-  rgbBtn.onclick = () => { useRGB = !useRGB; isEraser = false; updateUI(); };
-  widthEl.oninput = (e) => brushWidth = e.target.value;
-  document.getElementById('wheelClose').onclick = () => wheelPopup.style.display = 'none';
+  document.getElementById('burger').onclick = () => panel.style.display = panel.style.display==='none'?'block':'none';
 
   setInterval(() => { hueBase++; redraw(); }, 30);
 })();
