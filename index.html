@@ -23,7 +23,8 @@
         }
         .custom-scroll::-webkit-scrollbar { width: 4px; }
         .custom-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
-        canvas { touch-action: none; display: block; position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+        canvas { touch-action: none; display: block; position: absolute; top: 0; left: 0; width: 100%; height: 100%; cursor: crosshair; }
+        .no-select { user-select: none; -webkit-user-select: none; }
     </style>
 </head>
 <body>
@@ -53,12 +54,18 @@
             const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
             const [cityNoise, setCityNoise] = useState('ЗАГРУЗКА');
 
+            // Параметры холста
             const canvasRef = useRef(null);
             const pathsRef = useRef([]); 
             const [drawing, setDrawing] = useState(false);
             const [colorIdx, setColorIdx] = useState(0);
             const colors = ["#FFFFFF", "#FF0000", "#FF7F00", "#FFFF00", "#00FF00", "#0000FF", "#4B0082", "#9400D3", "rainbow"];
             const [hue, setHue] = useState(0);
+
+            // Состояние зума и смещения
+            const [scale, setScale] = useState(1);
+            const [offset, setOffset] = useState({ x: 0, y: 0 });
+            const lastTouchDistance = useRef(null);
 
             const appId = 'lie2srvv-app';
 
@@ -103,6 +110,7 @@
                 return () => window.removeEventListener('resize', resizeCanvas);
             }, []);
 
+            // Главный рендер цикл
             useEffect(() => {
                 let frame;
                 const chars = "абвгдеёжзийклмнопрстуфхцчшщъыьэюя";
@@ -123,9 +131,15 @@
                         const ctx = canvas.getContext('2d');
                         ctx.clearRect(0, 0, canvas.width, canvas.height);
                         
+                        ctx.save();
+                        // Применяем трансформации зума и смещения
+                        ctx.translate(offset.x, offset.y);
+                        ctx.scale(scale, scale);
+
                         pathsRef.current.forEach(path => {
                             ctx.beginPath();
-                            ctx.lineWidth = 5;
+                            // Толщина кисти компенсируется масштабом, чтобы всегда выглядеть одинаково
+                            ctx.lineWidth = 3 / scale; 
                             ctx.lineCap = 'round';
                             ctx.lineJoin = 'round';
                             ctx.strokeStyle = path.color === 'rainbow' ? `hsl(${hue}, 100%, 50%)` : path.color;
@@ -136,39 +150,111 @@
                             });
                             ctx.stroke();
                         });
+                        ctx.restore();
                     }
                     frame = requestAnimationFrame(render);
                 };
                 frame = requestAnimationFrame(render);
                 return () => cancelAnimationFrame(frame);
-            }, [hue]);
+            }, [hue, scale, offset]);
 
-            const getCoords = (e) => {
-                const canvas = canvasRef.current;
-                if (!canvas) return { x: 0, y: 0 };
-                const rect = canvas.getBoundingClientRect();
-                const clientX = e.clientX || (e.touches && e.touches[0].clientX);
-                const clientY = e.clientY || (e.touches && e.touches[0].clientY);
-                
+            // Преобразование координат экрана в мировые координаты (с учетом зума)
+            const screenToWorld = (clientX, clientY) => {
                 return {
-                    x: (clientX - rect.left) * (canvas.width / rect.width),
-                    y: (clientY - rect.top) * (canvas.height / rect.height)
+                    x: (clientX - offset.x) / scale,
+                    y: (clientY - offset.y) / scale
                 };
             };
 
-            const startDrawing = (e) => {
+            // Обработка колесика мыши (зум)
+            const handleWheel = (e) => {
                 if (currentPage !== 'draw') return;
-                const coords = getCoords(e);
+                e.preventDefault();
+                const zoomSpeed = 0.1;
+                const delta = -e.deltaY;
+                const newScale = Math.min(Math.max(scale + (delta > 0 ? zoomSpeed : -zoomSpeed) * scale, 0.2), 10);
+                
+                // Зум в точку курсора
+                const mouseX = e.clientX;
+                const mouseY = e.clientY;
+                const worldPos = screenToWorld(mouseX, mouseY);
+                
+                setScale(newScale);
+                setOffset({
+                    x: mouseX - worldPos.x * newScale,
+                    y: mouseY - worldPos.y * newScale
+                });
+            };
+
+            const handleTouchStart = (e) => {
+                if (currentPage !== 'draw') return;
+                if (e.touches.length === 2) {
+                    const dist = Math.hypot(
+                        e.touches[0].clientX - e.touches[1].clientX,
+                        e.touches[0].clientY - e.touches[1].clientY
+                    );
+                    lastTouchDistance.current = dist;
+                    setDrawing(false);
+                } else if (e.touches.length === 1) {
+                    const coords = screenToWorld(e.touches[0].clientX, e.touches[0].clientY);
+                    pathsRef.current.push({ color: colors[colorIdx], points: [coords] });
+                    setDrawing(true);
+                }
+            };
+
+            const handleTouchMove = (e) => {
+                if (currentPage !== 'draw') return;
+                if (e.touches.length === 2 && lastTouchDistance.current !== null) {
+                    const dist = Math.hypot(
+                        e.touches[0].clientX - e.touches[1].clientX,
+                        e.touches[0].clientY - e.touches[1].clientY
+                    );
+                    const delta = dist - lastTouchDistance.current;
+                    const zoomFactor = delta * 0.01;
+                    const newScale = Math.min(Math.max(scale + zoomFactor * scale, 0.2), 10);
+                    
+                    const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+                    const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+                    const worldPos = screenToWorld(midX, midY);
+
+                    setScale(newScale);
+                    setOffset({
+                        x: midX - worldPos.x * newScale,
+                        y: midY - worldPos.y * newScale
+                    });
+                    lastTouchDistance.current = dist;
+                } else if (drawing && e.touches.length === 1) {
+                    const coords = screenToWorld(e.touches[0].clientX, e.touches[0].clientY);
+                    pathsRef.current[pathsRef.current.length - 1].points.push(coords);
+                }
+            };
+
+            const handleMouseDown = (e) => {
+                if (currentPage !== 'draw' || e.button !== 0) return;
+                const coords = screenToWorld(e.clientX, e.clientY);
                 pathsRef.current.push({ color: colors[colorIdx], points: [coords] });
                 setDrawing(true);
             };
 
-            const drawMove = (e) => {
+            const handleMouseMove = (e) => {
                 if (!drawing || currentPage !== 'draw') return;
-                const coords = getCoords(e);
+                const coords = screenToWorld(e.clientX, e.clientY);
                 if (pathsRef.current.length > 0) {
                     pathsRef.current[pathsRef.current.length - 1].points.push(coords);
                 }
+            };
+
+            const changeZoom = (delta) => {
+                const newScale = Math.min(Math.max(scale + delta, 0.2), 10);
+                const centerX = window.innerWidth / 2;
+                const centerY = window.innerHeight / 2;
+                const worldPos = screenToWorld(centerX, centerY);
+                
+                setScale(newScale);
+                setOffset({
+                    x: centerX - worldPos.x * newScale,
+                    y: centerY - worldPos.y * newScale
+                });
             };
 
             const sendQuestion = async () => {
@@ -181,16 +267,14 @@
                         userId: user?.uid || 'anon'
                     });
                     setQuestion('');
-                    alert('Вопрос отправлен анонимно!');
-                } catch (e) {
-                    alert('Ошибка');
-                } finally {
+                } catch (e) {} finally {
                     setIsSending(false);
                 }
             };
 
             return (
-                <div className="min-h-screen w-full relative bg-[#0a0a0a]">
+                <div className="min-h-screen w-full relative bg-[#0a0a0a] no-select">
+                    {/* Background Snow */}
                     <div className="fixed inset-0 pointer-events-none z-0 opacity-20">
                         {[...Array(30)].map((_, i) => (
                             <div key={i} className="absolute bg-white rounded-full animate-snow" style={{
@@ -200,6 +284,7 @@
                         ))}
                     </div>
 
+                    {/* Menu Button */}
                     <button onClick={() => setMenuOpen(!menuOpen)} className="fixed top-6 right-6 z-50 p-4 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl hover:bg-white/10 transition-all active:scale-90">
                         <div className="w-6 h-5 flex flex-col justify-between items-end">
                             <span className={`h-0.5 bg-white transition-all ${menuOpen ? 'w-6 rotate-45 translate-y-2' : 'w-6'}`} />
@@ -208,6 +293,7 @@
                         </div>
                     </button>
 
+                    {/* Navigation */}
                     <div className={`fixed inset-0 z-40 bg-black/95 backdrop-blur-3xl transition-all duration-500 flex flex-col items-center justify-center gap-10 ${menuOpen ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-full pointer-events-none'}`}>
                         {['info', 'draw', 'ask'].map((p) => (
                             <button key={p} onClick={() => {setCurrentPage(p); setMenuOpen(false);}} className={`text-3xl font-bold uppercase tracking-widest transition-all ${currentPage === p ? 'text-cyan-400 scale-110' : 'text-white/30 hover:text-white'}`}>
@@ -216,9 +302,9 @@
                         ))}
                     </div>
 
-                    <main className="relative z-10 h-screen w-full flex items-center justify-center p-6">
+                    <main className="relative z-10 h-screen w-full flex items-center justify-center">
                         {currentPage === 'info' && (
-                            <div className="bg-white/[0.03] backdrop-blur-2xl border border-white/10 p-10 rounded-[2.5rem] max-w-md w-full shadow-2xl animate-fadeUp">
+                            <div className="bg-white/[0.03] backdrop-blur-2xl border border-white/10 p-10 rounded-[2.5rem] max-w-md w-full shadow-2xl animate-fadeUp mx-6">
                                 <h1 className="text-3xl font-bold mb-2 tracking-tight">lie2srvv</h1>
                                 <p className="text-white/40 mb-8 font-medium italic">@lie2srvv</p>
                                 
@@ -249,41 +335,51 @@
                         )}
 
                         {currentPage === 'draw' && (
-                            <div className="absolute inset-0 overflow-hidden">
+                            <div className="absolute inset-0 overflow-hidden" onWheel={handleWheel}>
                                 <canvas ref={canvasRef} 
-                                    onMouseDown={startDrawing} onMouseMove={drawMove} onMouseUp={() => setDrawing(false)}
+                                    onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={() => setDrawing(false)}
                                     onMouseLeave={() => setDrawing(false)}
-                                    onTouchStart={startDrawing} onTouchMove={drawMove} onTouchEnd={() => setDrawing(false)}
+                                    onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={() => {setDrawing(false); lastTouchDistance.current = null;}}
                                 />
+                                
+                                {/* Zoom Controls */}
+                                <div className="fixed right-6 top-1/2 -translate-y-1/2 flex flex-col gap-3 z-30">
+                                    <button onClick={() => changeZoom(0.2)} className="w-12 h-12 bg-white/10 backdrop-blur-xl border border-white/10 rounded-full flex items-center justify-center text-2xl font-bold hover:bg-white/20 active:scale-90">+</button>
+                                    <button onClick={() => changeZoom(-0.2)} className="w-12 h-12 bg-white/10 backdrop-blur-xl border border-white/10 rounded-full flex items-center justify-center text-2xl font-bold hover:bg-white/20 active:scale-90">-</button>
+                                    <button onClick={() => {setScale(1); setOffset({x:0, y:0});}} className="w-12 h-12 bg-white/10 backdrop-blur-xl border border-white/10 rounded-full flex items-center justify-center text-[10px] font-bold uppercase hover:bg-white/20 active:scale-90">Reset</button>
+                                </div>
+
+                                {/* Color & Clear Bar */}
                                 <div className="fixed bottom-12 left-1/2 -translate-x-1/2 flex items-center gap-6 bg-black/80 backdrop-blur-2xl p-4 px-8 rounded-full border border-white/10 shadow-2xl z-20">
-                                    <button onClick={() => setColorIdx((colorIdx + 1) % colors.length)} className="w-12 h-12 rounded-full border-4 border-white/20 transition-transform active:scale-90" 
+                                    <button onClick={() => setColorIdx((colorIdx + 1) % colors.length)} className="w-10 h-10 rounded-full border-4 border-white/20 transition-transform active:scale-90" 
                                         style={{background: colors[colorIdx] === 'rainbow' ? `hsl(${hue},100%,50%)` : colors[colorIdx]}} />
-                                    <button onClick={() => { pathsRef.current = []; }} className="bg-white/10 px-6 py-3 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-white/20 transition-all">Clear</button>
+                                    <div className="w-px h-6 bg-white/10" />
+                                    <button onClick={() => { pathsRef.current = []; }} className="bg-red-500/10 text-red-400 px-6 py-3 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-red-500/20 transition-all">Clear</button>
                                 </div>
                             </div>
                         )}
 
                         {currentPage === 'ask' && (
-                            <div className="bg-white/[0.03] backdrop-blur-2xl border border-white/10 p-10 rounded-[2.5rem] max-w-md w-full shadow-2xl animate-fadeUp">
+                            <div className="bg-white/[0.03] backdrop-blur-2xl border border-white/10 p-10 rounded-[2.5rem] max-w-md w-full shadow-2xl animate-fadeUp mx-6">
                                 {!isAdminAuthenticated ? (
                                     <>
-                                        <h2 className="text-2xl font-bold mb-6">Анонимно</h2>
+                                        <h2 className="text-2xl font-bold mb-6 tracking-tight">Анонимно</h2>
                                         <textarea value={question} onChange={e => setQuestion(e.target.value)} placeholder="Напиши что-нибудь..." className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 min-h-[140px] focus:outline-none focus:border-cyan-500/50 transition-all resize-none mb-6 text-white" />
                                         <button onClick={sendQuestion} disabled={isSending || !question.trim()} className="w-full bg-white text-black font-bold py-5 rounded-2xl active:scale-95 disabled:opacity-20 uppercase tracking-widest">Отправить</button>
                                         
-                                        <button onClick={() => setShowAdmin(!showAdmin)} className="w-full mt-10 text-[10px] text-white/10 uppercase tracking-widest hover:text-white/30 transition-colors">Admin Terminal</button>
+                                        <button onClick={() => setShowAdmin(!showAdmin)} className="w-full mt-10 text-[10px] text-white/10 uppercase tracking-widest hover:text-white/30 transition-colors">Панель управления</button>
                                         {showAdmin && (
                                             <div className="mt-4 flex gap-2 animate-fadeUp">
-                                                <input type="password" value={adminPass} onChange={e => setAdminPass(e.target.value)} className="bg-white/5 border border-white/10 rounded-xl px-4 flex-1 text-sm outline-none text-white" placeholder="Pass" />
-                                                <button onClick={() => adminPass === 'Lie2Admin' ? setIsAdminAuthenticated(true) : alert('Доступ запрещен')} className="bg-cyan-500 text-black px-4 py-2 rounded-xl text-xs font-bold">OK</button>
+                                                <input type="password" value={adminPass} onChange={e => setAdminPass(e.target.value)} className="bg-white/5 border border-white/10 rounded-xl px-4 flex-1 text-sm outline-none text-white" placeholder="Пароль" />
+                                                <button onClick={() => adminPass === 'Lie2Admin' ? setIsAdminAuthenticated(true) : alert('Ошибка')} className="bg-cyan-500 text-black px-4 py-2 rounded-xl text-xs font-bold">Войти</button>
                                             </div>
                                         )}
                                     </>
                                 ) : (
                                     <div className="h-[450px] flex flex-col">
                                         <div className="flex justify-between items-center mb-6">
-                                            <h2 className="font-bold text-xl uppercase tracking-tighter">Inbox ({questionsList.length})</h2>
-                                            <button onClick={() => setIsAdminAuthenticated(false)} className="text-xs text-cyan-400 font-bold uppercase tracking-widest">Logout</button>
+                                            <h2 className="font-bold text-xl uppercase tracking-tighter">Входящие ({questionsList.length})</h2>
+                                            <button onClick={() => setIsAdminAuthenticated(false)} className="text-xs text-cyan-400 font-bold uppercase tracking-widest">Выход</button>
                                         </div>
                                         <div className="flex-1 overflow-y-auto space-y-4 custom-scroll pr-2">
                                             {questionsList.map(q => (
@@ -292,7 +388,7 @@
                                                     <p className="text-[10px] opacity-20 mt-3 font-mono">{q.createdAt?.toDate().toLocaleString()}</p>
                                                 </div>
                                             ))}
-                                            {questionsList.length === 0 && <p className="text-center opacity-10 mt-20 text-xs">Нет новых вопросов</p>}
+                                            {questionsList.length === 0 && <p className="text-center opacity-10 mt-20 text-xs uppercase tracking-widest">Пусто</p>}
                                         </div>
                                     </div>
                                 )}
