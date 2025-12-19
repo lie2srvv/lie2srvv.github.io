@@ -48,10 +48,10 @@
         <div class="title">lie2srvv</div>
         <div class="nick">@lie2srvv</div>
       </div>
-      <div class="muted">Россия</div>
+      <div class="muted">Россия, г. ???????</div>
     </div>
 
-    <p class="muted" style="margin:8px 0">Александр, 16 лет. Увлекаюсь программированием, люблю логические задачки.</p>
+    <p class="muted" style="margin:8px 0">Александр, 16 лет. Увлекаюсь программированием. Можете порисовать на этом сайте, если вам скучно:)</p>
 
     <div style="margin-top:8px">
       <div class="muted" style="margin-bottom:6px">Цвета</div>
@@ -66,7 +66,7 @@
         <button id="clear" class="clear">Очистить</button>
       </div>
 
-      <div class="hint">Нажми ☰, чтобы скрыть/показать панель. Чтобы рисовать — коснись и тяни по экрану.</div>
+      <div class="hint">Нажми ☰, чтобы скрыть / показать панель. Чтобы рисовать — коснись и тяни по экрану.</div>
     </div>
   </div>
 </div>
@@ -195,9 +195,15 @@
 
   // burger toggle
   burger.addEventListener('click', ()=>{
-    // toggle panel visibility (show/hide)
     const visible = panel.style.display !== 'none';
     panel.style.display = visible ? 'none' : 'block';
+  });
+
+  // NEW: open panel on right-click (contextmenu) — prevent default context menu
+  window.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    // show panel
+    panel.style.display = 'block';
   });
 
   // pointer events (unified)
@@ -205,13 +211,12 @@
   canvas.addEventListener('pointerdown', (e)=>{
     // only primary pointers
     if(e.button !== undefined && e.button !== 0) return;
-    // ensure panel doesn't intercept: pointerdown only on canvas area
     // start drawing
     drawing = true;
     const pos = getPos(e);
     const hueStart = hueBase;
     currentPath = { pts: [pos], isRGB: useRGB, hueStart: hueStart, color: currentColor, width: brushWidth };
-    // capture pointer so we receive move/up even if pointer goes outside element
+    // capture pointer
     try { e.target.setPointerCapture(e.pointerId); } catch(_) {}
   }, { passive:false });
 
