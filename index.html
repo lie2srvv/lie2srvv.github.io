@@ -10,19 +10,33 @@
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <style>
-        body { background-color: #0a0a0a; margin: 0; font-family: 'Montserrat', sans-serif; color: white; overflow: hidden; touch-action: none; }
-        @keyframes snow {
-            0% { transform: translateY(-10vh) rotate(0deg); }
-            100% { transform: translateY(110vh) rotate(360deg); }
+        body { background-color: #050505; margin: 0; font-family: 'Montserrat', sans-serif; color: white; overflow: hidden; touch-action: none; }
+        
+        /* Улучшенный снег */
+        @keyframes snow-fall {
+            0% { transform: translateY(-10vh) translateX(0); }
+            50% { transform: translateY(50vh) translateX(15px); }
+            100% { transform: translateY(110vh) translateX(-15px); }
         }
-        .animate-snow { animation: snow linear infinite; }
+        .snowflake {
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+            pointer-events: none;
+            filter: blur(1px);
+            box-shadow: 0 0 5px rgba(255,255,255,0.8);
+            animation: snow-fall linear infinite;
+        }
+
         .animate-fadeUp { animation: fadeUp 0.8s cubic-bezier(0.23, 1, 0.32, 1) forwards; }
         @keyframes fadeUp {
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
         }
+        
         .custom-scroll::-webkit-scrollbar { width: 4px; }
         .custom-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+        
         canvas { touch-action: none; display: block; position: absolute; top: 0; left: 0; width: 100%; height: 100%; cursor: crosshair; }
         .no-select { user-select: none; -webkit-user-select: none; }
     </style>
@@ -34,7 +48,6 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
         import { getFirestore, collection, addDoc, onSnapshot, Timestamp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
-
         window.fb = { initializeApp, getFirestore, collection, addDoc, onSnapshot, Timestamp, getAuth, signInAnonymously, onAuthStateChanged };
     </script>
 
@@ -59,7 +72,7 @@
             const pathsRef = useRef([]); 
             const [drawing, setDrawing] = useState(false);
             const [colorIdx, setColorIdx] = useState(0);
-            const colors = ["#FFFFFF", "#FF0000", "#FF7F00", "#FFFF00", "#00FF00", "#0000FF", "#4B0082", "#9400D3", "rainbow"];
+            const colors = ["#FFFFFF", "#FF3366", "#FF9933", "#FFFF66", "#33FF99", "#3399FF", "#9933FF", "rainbow"];
             const [hue, setHue] = useState(0);
 
             // Состояние зума и смещения
@@ -69,6 +82,7 @@
 
             const appId = 'lie2srvv-app';
 
+            // Инициализация Firebase
             useEffect(() => {
                 const checkFb = setInterval(() => {
                     if (window.fb) {
@@ -110,16 +124,45 @@
                 return () => window.removeEventListener('resize', resizeCanvas);
             }, []);
 
-            // Главный рендер цикл
+            // Отрисовка сглаженных линий
+            const drawPath = (ctx, path) => {
+                if (path.points.length < 2) return;
+                
+                ctx.beginPath();
+                ctx.lineWidth = 4 / scale; 
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                ctx.strokeStyle = path.color === 'rainbow' ? `hsl(${hue}, 100%, 60%)` : path.color;
+                
+                ctx.moveTo(path.points[0].x, path.points[0].y);
+
+                // Алгоритм сглаживания Безье
+                for (let i = 1; i < path.points.length - 2; i++) {
+                    const xc = (path.points[i].x + path.points[i + 1].x) / 2;
+                    const yc = (path.points[i].y + path.points[i + 1].y) / 2;
+                    ctx.quadraticCurveTo(path.points[i].x, path.points[i].y, xc, yc);
+                }
+                
+                // Для последних двух точек
+                if (path.points.length > 2) {
+                    const i = path.points.length - 2;
+                    ctx.quadraticCurveTo(path.points[i].x, path.points[i].y, path.points[i+1].x, path.points[i+1].y);
+                } else {
+                    ctx.lineTo(path.points[1].x, path.points[1].y);
+                }
+                
+                ctx.stroke();
+            };
+
             useEffect(() => {
                 let frame;
                 const chars = "абвгдеёжзийклмнопрстуфхцчшщъыьэюя";
                 let lastNoiseUpdate = 0;
 
                 const render = (time) => {
-                    setHue(h => (h + 2) % 360);
+                    setHue(h => (h + 1) % 360);
 
-                    if (time - lastNoiseUpdate > 50) {
+                    if (time - lastNoiseUpdate > 60) {
                         let res = "";
                         for(let i=0; i<6; i++) res += chars[Math.floor(Math.random()*chars.length)];
                         setCityNoise(res.toUpperCase());
@@ -132,24 +175,10 @@
                         ctx.clearRect(0, 0, canvas.width, canvas.height);
                         
                         ctx.save();
-                        // Применяем трансформации зума и смещения
                         ctx.translate(offset.x, offset.y);
                         ctx.scale(scale, scale);
 
-                        pathsRef.current.forEach(path => {
-                            ctx.beginPath();
-                            // Толщина кисти компенсируется масштабом, чтобы всегда выглядеть одинаково
-                            ctx.lineWidth = 3 / scale; 
-                            ctx.lineCap = 'round';
-                            ctx.lineJoin = 'round';
-                            ctx.strokeStyle = path.color === 'rainbow' ? `hsl(${hue}, 100%, 50%)` : path.color;
-                            
-                            path.points.forEach((p, i) => {
-                                if (i === 0) ctx.moveTo(p.x, p.y);
-                                else ctx.lineTo(p.x, p.y);
-                            });
-                            ctx.stroke();
-                        });
+                        pathsRef.current.forEach(path => drawPath(ctx, path));
                         ctx.restore();
                     }
                     frame = requestAnimationFrame(render);
@@ -158,7 +187,6 @@
                 return () => cancelAnimationFrame(frame);
             }, [hue, scale, offset]);
 
-            // Преобразование координат экрана в мировые координаты (с учетом зума)
             const screenToWorld = (clientX, clientY) => {
                 return {
                     x: (clientX - offset.x) / scale,
@@ -166,15 +194,13 @@
                 };
             };
 
-            // Обработка колесика мыши (зум)
             const handleWheel = (e) => {
                 if (currentPage !== 'draw') return;
-                e.preventDefault();
-                const zoomSpeed = 0.1;
+                const zoomSpeed = 0.15;
                 const delta = -e.deltaY;
-                const newScale = Math.min(Math.max(scale + (delta > 0 ? zoomSpeed : -zoomSpeed) * scale, 0.2), 10);
+                const factor = delta > 0 ? (1 + zoomSpeed) : (1 - zoomSpeed);
+                const newScale = Math.min(Math.max(scale * factor, 0.3), 15);
                 
-                // Зум в точку курсора
                 const mouseX = e.clientX;
                 const mouseY = e.clientY;
                 const worldPos = screenToWorld(mouseX, mouseY);
@@ -189,11 +215,10 @@
             const handleTouchStart = (e) => {
                 if (currentPage !== 'draw') return;
                 if (e.touches.length === 2) {
-                    const dist = Math.hypot(
+                    lastTouchDistance.current = Math.hypot(
                         e.touches[0].clientX - e.touches[1].clientX,
                         e.touches[0].clientY - e.touches[1].clientY
                     );
-                    lastTouchDistance.current = dist;
                     setDrawing(false);
                 } else if (e.touches.length === 1) {
                     const coords = screenToWorld(e.touches[0].clientX, e.touches[0].clientY);
@@ -209,9 +234,8 @@
                         e.touches[0].clientX - e.touches[1].clientX,
                         e.touches[0].clientY - e.touches[1].clientY
                     );
-                    const delta = dist - lastTouchDistance.current;
-                    const zoomFactor = delta * 0.01;
-                    const newScale = Math.min(Math.max(scale + zoomFactor * scale, 0.2), 10);
+                    const factor = dist / lastTouchDistance.current;
+                    const newScale = Math.min(Math.max(scale * factor, 0.3), 15);
                     
                     const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
                     const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
@@ -244,17 +268,13 @@
                 }
             };
 
-            const changeZoom = (delta) => {
-                const newScale = Math.min(Math.max(scale + delta, 0.2), 10);
+            const changeZoom = (factor) => {
+                const newScale = Math.min(Math.max(scale * factor, 0.3), 15);
                 const centerX = window.innerWidth / 2;
                 const centerY = window.innerHeight / 2;
                 const worldPos = screenToWorld(centerX, centerY);
-                
                 setScale(newScale);
-                setOffset({
-                    x: centerX - worldPos.x * newScale,
-                    y: centerY - worldPos.y * newScale
-                });
+                setOffset({ x: centerX - worldPos.x * newScale, y: centerY - worldPos.y * newScale });
             };
 
             const sendQuestion = async () => {
@@ -273,19 +293,23 @@
             };
 
             return (
-                <div className="min-h-screen w-full relative bg-[#0a0a0a] no-select">
-                    {/* Background Snow */}
-                    <div className="fixed inset-0 pointer-events-none z-0 opacity-20">
-                        {[...Array(30)].map((_, i) => (
-                            <div key={i} className="absolute bg-white rounded-full animate-snow" style={{
-                                left: `${Math.random()*100}%`, width: '1.5px', height: '1.5px',
-                                animationDuration: `${Math.random()*10+5}s`, top: '-5%'
+                <div className="min-h-screen w-full relative bg-[#050505] no-select">
+                    {/* Снег с разной плотностью */}
+                    <div className="fixed inset-0 pointer-events-none z-0 opacity-40">
+                        {[...Array(currentPage === 'draw' ? 12 : 40)].map((_, i) => (
+                            <div key={i} className="snowflake" style={{
+                                left: `${Math.random()*100}%`, 
+                                width: `${Math.random()*3+1}px`, 
+                                height: `${Math.random()*3+1}px`,
+                                animationDuration: `${Math.random()*8+4}s`,
+                                animationDelay: `-${Math.random()*10}s`,
+                                top: '-5%',
+                                opacity: Math.random()*0.5 + 0.3
                             }} />
                         ))}
                     </div>
 
-                    {/* Menu Button */}
-                    <button onClick={() => setMenuOpen(!menuOpen)} className="fixed top-6 right-6 z-50 p-4 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl hover:bg-white/10 transition-all active:scale-90">
+                    <button onClick={() => setMenuOpen(!menuOpen)} className="fixed top-6 right-6 z-50 p-4 bg-white/5 backdrop-blur-2xl border border-white/10 rounded-2xl hover:bg-white/10 transition-all active:scale-90">
                         <div className="w-6 h-5 flex flex-col justify-between items-end">
                             <span className={`h-0.5 bg-white transition-all ${menuOpen ? 'w-6 rotate-45 translate-y-2' : 'w-6'}`} />
                             <span className={`h-0.5 bg-white transition-all ${menuOpen ? 'opacity-0' : 'w-4'}`} />
@@ -293,7 +317,6 @@
                         </div>
                     </button>
 
-                    {/* Navigation */}
                     <div className={`fixed inset-0 z-40 bg-black/95 backdrop-blur-3xl transition-all duration-500 flex flex-col items-center justify-center gap-10 ${menuOpen ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-full pointer-events-none'}`}>
                         {['info', 'draw', 'ask'].map((p) => (
                             <button key={p} onClick={() => {setCurrentPage(p); setMenuOpen(false);}} className={`text-3xl font-bold uppercase tracking-widest transition-all ${currentPage === p ? 'text-cyan-400 scale-110' : 'text-white/30 hover:text-white'}`}>
@@ -324,13 +347,10 @@
                                 </div>
 
                                 <div className="h-px bg-white/10 my-8" />
-                                
-                                <div className="flex flex-col gap-3">
-                                    <a href="https://t.me/lie2survive" target="_blank" className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5 hover:border-cyan-500/30 transition-all group">
-                                        <span className="font-bold">Телеграм</span>
-                                        <span className="text-cyan-400 group-hover:translate-x-1 transition-transform">→</span>
-                                    </a>
-                                </div>
+                                <a href="https://t.me/lie2survive" target="_blank" className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5 hover:border-cyan-500/30 transition-all group">
+                                    <span className="font-bold">Телеграм</span>
+                                    <span className="text-cyan-400 group-hover:translate-x-1 transition-transform">→</span>
+                                </a>
                             </div>
                         )}
 
@@ -342,19 +362,17 @@
                                     onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={() => {setDrawing(false); lastTouchDistance.current = null;}}
                                 />
                                 
-                                {/* Zoom Controls */}
                                 <div className="fixed right-6 top-1/2 -translate-y-1/2 flex flex-col gap-3 z-30">
-                                    <button onClick={() => changeZoom(0.2)} className="w-12 h-12 bg-white/10 backdrop-blur-xl border border-white/10 rounded-full flex items-center justify-center text-2xl font-bold hover:bg-white/20 active:scale-90">+</button>
-                                    <button onClick={() => changeZoom(-0.2)} className="w-12 h-12 bg-white/10 backdrop-blur-xl border border-white/10 rounded-full flex items-center justify-center text-2xl font-bold hover:bg-white/20 active:scale-90">-</button>
-                                    <button onClick={() => {setScale(1); setOffset({x:0, y:0});}} className="w-12 h-12 bg-white/10 backdrop-blur-xl border border-white/10 rounded-full flex items-center justify-center text-[10px] font-bold uppercase hover:bg-white/20 active:scale-90">Reset</button>
+                                    <button onClick={() => changeZoom(1.2)} className="w-12 h-12 bg-white/10 backdrop-blur-2xl border border-white/10 rounded-2xl flex items-center justify-center text-2xl font-bold active:scale-90">+</button>
+                                    <button onClick={() => changeZoom(0.8)} className="w-12 h-12 bg-white/10 backdrop-blur-2xl border border-white/10 rounded-2xl flex items-center justify-center text-2xl font-bold active:scale-90">-</button>
+                                    <button onClick={() => {setScale(1); setOffset({x:0, y:0});}} className="w-12 h-12 bg-white/10 backdrop-blur-2xl border border-white/10 rounded-2xl flex items-center justify-center text-[8px] font-bold uppercase tracking-tighter active:scale-90">Reset</button>
                                 </div>
 
-                                {/* Color & Clear Bar */}
-                                <div className="fixed bottom-12 left-1/2 -translate-x-1/2 flex items-center gap-6 bg-black/80 backdrop-blur-2xl p-4 px-8 rounded-full border border-white/10 shadow-2xl z-20">
-                                    <button onClick={() => setColorIdx((colorIdx + 1) % colors.length)} className="w-10 h-10 rounded-full border-4 border-white/20 transition-transform active:scale-90" 
-                                        style={{background: colors[colorIdx] === 'rainbow' ? `hsl(${hue},100%,50%)` : colors[colorIdx]}} />
+                                <div className="fixed bottom-12 left-1/2 -translate-x-1/2 flex items-center gap-4 bg-black/80 backdrop-blur-3xl p-3 px-6 rounded-full border border-white/10 shadow-2xl z-20">
+                                    <button onClick={() => setColorIdx((colorIdx + 1) % colors.length)} className="w-10 h-10 rounded-full border-2 border-white/20 transition-transform active:scale-90" 
+                                        style={{background: colors[colorIdx] === 'rainbow' ? `hsl(${hue},100%,60%)` : colors[colorIdx]}} />
                                     <div className="w-px h-6 bg-white/10" />
-                                    <button onClick={() => { pathsRef.current = []; }} className="bg-red-500/10 text-red-400 px-6 py-3 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-red-500/20 transition-all">Clear</button>
+                                    <button onClick={() => { pathsRef.current = []; }} className="bg-red-500/20 text-red-400 px-5 py-2.5 rounded-full text-[10px] font-bold uppercase tracking-widest active:scale-90">Clear</button>
                                 </div>
                             </div>
                         )}
@@ -364,31 +382,30 @@
                                 {!isAdminAuthenticated ? (
                                     <>
                                         <h2 className="text-2xl font-bold mb-6 tracking-tight">Анонимно</h2>
-                                        <textarea value={question} onChange={e => setQuestion(e.target.value)} placeholder="Напиши что-нибудь..." className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 min-h-[140px] focus:outline-none focus:border-cyan-500/50 transition-all resize-none mb-6 text-white" />
+                                        <textarea value={question} onChange={e => setQuestion(e.target.value)} placeholder="Ваше сообщение..." className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 min-h-[140px] focus:outline-none focus:border-cyan-500/50 transition-all resize-none mb-6 text-white" />
                                         <button onClick={sendQuestion} disabled={isSending || !question.trim()} className="w-full bg-white text-black font-bold py-5 rounded-2xl active:scale-95 disabled:opacity-20 uppercase tracking-widest">Отправить</button>
-                                        
-                                        <button onClick={() => setShowAdmin(!showAdmin)} className="w-full mt-10 text-[10px] text-white/10 uppercase tracking-widest hover:text-white/30 transition-colors">Панель управления</button>
+                                        <button onClick={() => setShowAdmin(!showAdmin)} className="w-full mt-10 text-[10px] text-white/10 uppercase tracking-widest hover:text-white/30">Admin Terminal</button>
                                         {showAdmin && (
-                                            <div className="mt-4 flex gap-2 animate-fadeUp">
-                                                <input type="password" value={adminPass} onChange={e => setAdminPass(e.target.value)} className="bg-white/5 border border-white/10 rounded-xl px-4 flex-1 text-sm outline-none text-white" placeholder="Пароль" />
-                                                <button onClick={() => adminPass === 'Lie2Admin' ? setIsAdminAuthenticated(true) : alert('Ошибка')} className="bg-cyan-500 text-black px-4 py-2 rounded-xl text-xs font-bold">Войти</button>
+                                            <div className="mt-4 flex gap-2">
+                                                <input type="password" value={adminPass} onChange={e => setAdminPass(e.target.value)} className="bg-white/5 border border-white/10 rounded-xl px-4 flex-1 text-sm outline-none text-white" placeholder="Pass" />
+                                                <button onClick={() => adminPass === 'Lie2Admin' ? setIsAdminAuthenticated(true) : alert('Error')} className="bg-cyan-500 text-black px-4 py-2 rounded-xl text-xs font-bold">OK</button>
                                             </div>
                                         )}
                                     </>
                                 ) : (
                                     <div className="h-[450px] flex flex-col">
                                         <div className="flex justify-between items-center mb-6">
-                                            <h2 className="font-bold text-xl uppercase tracking-tighter">Входящие ({questionsList.length})</h2>
-                                            <button onClick={() => setIsAdminAuthenticated(false)} className="text-xs text-cyan-400 font-bold uppercase tracking-widest">Выход</button>
+                                            <h2 className="font-bold text-xl uppercase tracking-tighter">Inbox</h2>
+                                            <button onClick={() => setIsAdminAuthenticated(false)} className="text-xs text-cyan-400 font-bold uppercase">Logout</button>
                                         </div>
                                         <div className="flex-1 overflow-y-auto space-y-4 custom-scroll pr-2">
                                             {questionsList.map(q => (
                                                 <div key={q.id} className="bg-white/5 p-5 rounded-3xl border border-white/5">
-                                                    <p className="text-sm font-medium leading-relaxed">{q.text}</p>
-                                                    <p className="text-[10px] opacity-20 mt-3 font-mono">{q.createdAt?.toDate().toLocaleString()}</p>
+                                                    <p className="text-sm leading-relaxed">{q.text}</p>
+                                                    <p className="text-[10px] opacity-20 mt-3">{q.createdAt?.toDate().toLocaleString()}</p>
                                                 </div>
                                             ))}
-                                            {questionsList.length === 0 && <p className="text-center opacity-10 mt-20 text-xs uppercase tracking-widest">Пусто</p>}
+                                            {questionsList.length === 0 && <p className="text-center opacity-10 mt-20 text-xs">No data</p>}
                                         </div>
                                     </div>
                                 )}
