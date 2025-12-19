@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>lie2srvv</title>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -10,7 +10,7 @@
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <style>
-        body { background-color: #0a0a0a; margin: 0; font-family: 'Montserrat', sans-serif; color: white; overflow: hidden; }
+        body { background-color: #0a0a0a; margin: 0; font-family: 'Montserrat', sans-serif; color: white; overflow: hidden; touch-action: none; }
         @keyframes snow {
             0% { transform: translateY(-10vh) rotate(0deg); }
             100% { transform: translateY(110vh) rotate(360deg); }
@@ -23,7 +23,7 @@
         }
         .custom-scroll::-webkit-scrollbar { width: 4px; }
         .custom-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
-        canvas { touch-action: none; display: block; }
+        canvas { touch-action: none; display: block; position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
     </style>
 </head>
 <body>
@@ -51,19 +51,17 @@
             const [showAdmin, setShowAdmin] = useState(false);
             const [adminPass, setAdminPass] = useState('');
             const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
-            
             const [cityNoise, setCityNoise] = useState('ЗАГРУЗКА');
 
             const canvasRef = useRef(null);
             const pathsRef = useRef([]); 
-            const drawingRef = useRef(false);
+            const [drawing, setDrawing] = useState(false);
             const [colorIdx, setColorIdx] = useState(0);
             const colors = ["#FFFFFF", "#FF0000", "#FF7F00", "#FFFF00", "#00FF00", "#0000FF", "#4B0082", "#9400D3", "rainbow"];
             const [hue, setHue] = useState(0);
 
             const appId = 'lie2srvv-app';
 
-            // Инициализация Firebase
             useEffect(() => {
                 const checkFb = setInterval(() => {
                     if (window.fb) {
@@ -76,25 +74,23 @@
                             setDb(_db);
                             window.fb.signInAnonymously(_auth).catch(() => {});
                             window.fb.onAuthStateChanged(_auth, setUser);
-                        } catch(e) { console.error("Firebase Init Error", e); }
+                        } catch(e) {}
                     }
                 }, 100);
                 return () => clearInterval(checkFb);
             }, []);
 
-            // Загрузка вопросов
             useEffect(() => {
                 if (!db || !user || !isAdminAuthenticated) return;
                 const qCol = window.fb.collection(db, 'artifacts', appId, 'public', 'data', 'questions');
                 const unsubscribe = window.fb.onSnapshot(qCol, (snapshot) => {
                     const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                     setQuestionsList(data.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)));
-                }, (err) => console.error("Firestore Error", err));
+                }, () => {});
                 return () => unsubscribe();
             }, [db, user, isAdminAuthenticated]);
 
-            // Обновление размера холста
-            const updateCanvasSize = () => {
+            const resizeCanvas = () => {
                 if (canvasRef.current) {
                     canvasRef.current.width = window.innerWidth;
                     canvasRef.current.height = window.innerHeight;
@@ -102,12 +98,11 @@
             };
 
             useEffect(() => {
-                updateCanvasSize();
-                window.addEventListener('resize', updateCanvasSize);
-                return () => window.removeEventListener('resize', updateCanvasSize);
-            }, [currentPage]);
+                window.addEventListener('resize', resizeCanvas);
+                resizeCanvas();
+                return () => window.removeEventListener('resize', resizeCanvas);
+            }, []);
 
-            // Главный цикл анимации
             useEffect(() => {
                 let frame;
                 const chars = "абвгдеёжзийклмнопрстуфхцчшщъыьэюя";
@@ -123,21 +118,22 @@
                         lastNoiseUpdate = time;
                     }
 
-                    if (canvasRef.current && currentPage === 'draw') {
+                    if (canvasRef.current) {
                         const canvas = canvasRef.current;
                         const ctx = canvas.getContext('2d');
                         ctx.clearRect(0, 0, canvas.width, canvas.height);
                         
                         pathsRef.current.forEach(path => {
-                            if (path.points.length < 1) return;
                             ctx.beginPath();
                             ctx.lineWidth = 5;
                             ctx.lineCap = 'round';
                             ctx.lineJoin = 'round';
                             ctx.strokeStyle = path.color === 'rainbow' ? `hsl(${hue}, 100%, 50%)` : path.color;
                             
-                            ctx.moveTo(path.points[0].x, path.points[0].y);
-                            path.points.forEach((p) => ctx.lineTo(p.x, p.y));
+                            path.points.forEach((p, i) => {
+                                if (i === 0) ctx.moveTo(p.x, p.y);
+                                else ctx.lineTo(p.x, p.y);
+                            });
                             ctx.stroke();
                         });
                     }
@@ -145,35 +141,35 @@
                 };
                 frame = requestAnimationFrame(render);
                 return () => cancelAnimationFrame(frame);
-            }, [hue, currentPage]);
+            }, [hue]);
 
-            const getPos = (e) => {
-                if (!canvasRef.current) return { x: 0, y: 0 };
-                const rect = canvasRef.current.getBoundingClientRect();
+            const getCoords = (e) => {
+                const canvas = canvasRef.current;
+                if (!canvas) return { x: 0, y: 0 };
+                const rect = canvas.getBoundingClientRect();
                 const clientX = e.clientX || (e.touches && e.touches[0].clientX);
                 const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+                
                 return {
-                    x: clientX - rect.left,
-                    y: clientY - rect.top
+                    x: (clientX - rect.left) * (canvas.width / rect.width),
+                    y: (clientY - rect.top) * (canvas.height / rect.height)
                 };
             };
 
             const startDrawing = (e) => {
-                if (currentPage !== 'draw' || !canvasRef.current) return;
-                drawingRef.current = true;
-                const pos = getPos(e);
-                pathsRef.current.push({ color: colors[colorIdx], points: [pos] });
+                if (currentPage !== 'draw') return;
+                const coords = getCoords(e);
+                pathsRef.current.push({ color: colors[colorIdx], points: [coords] });
+                setDrawing(true);
             };
 
             const drawMove = (e) => {
-                if (!drawingRef.current || currentPage !== 'draw') return;
-                const pos = getPos(e);
+                if (!drawing || currentPage !== 'draw') return;
+                const coords = getCoords(e);
                 if (pathsRef.current.length > 0) {
-                    pathsRef.current[pathsRef.current.length - 1].points.push(pos);
+                    pathsRef.current[pathsRef.current.length - 1].points.push(coords);
                 }
             };
-
-            const stopDrawing = () => { drawingRef.current = false; };
 
             const sendQuestion = async () => {
                 if (!question.trim() || isSending || !db) return;
@@ -187,7 +183,7 @@
                     setQuestion('');
                     alert('Вопрос отправлен анонимно!');
                 } catch (e) {
-                    alert('Ошибка при отправке');
+                    alert('Ошибка');
                 } finally {
                     setIsSending(false);
                 }
@@ -248,20 +244,16 @@
                                         <span className="font-bold">Телеграм</span>
                                         <span className="text-cyan-400 group-hover:translate-x-1 transition-transform">→</span>
                                     </a>
-                                    <a href="https://github.com/lie2srvv" target="_blank" className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5 hover:border-cyan-500/30 transition-all group">
-                                        <span className="font-bold">Github</span>
-                                        <span className="text-cyan-400 group-hover:translate-x-1 transition-transform">→</span>
-                                    </a>
                                 </div>
                             </div>
                         )}
 
                         {currentPage === 'draw' && (
                             <div className="absolute inset-0 overflow-hidden">
-                                <canvas ref={canvasRef} className="w-full h-full"
-                                    onMouseDown={startDrawing} onMouseMove={drawMove} onMouseUp={stopDrawing}
-                                    onMouseLeave={stopDrawing}
-                                    onTouchStart={startDrawing} onTouchMove={drawMove} onTouchEnd={stopDrawing}
+                                <canvas ref={canvasRef} 
+                                    onMouseDown={startDrawing} onMouseMove={drawMove} onMouseUp={() => setDrawing(false)}
+                                    onMouseLeave={() => setDrawing(false)}
+                                    onTouchStart={startDrawing} onTouchMove={drawMove} onTouchEnd={() => setDrawing(false)}
                                 />
                                 <div className="fixed bottom-12 left-1/2 -translate-x-1/2 flex items-center gap-6 bg-black/80 backdrop-blur-2xl p-4 px-8 rounded-full border border-white/10 shadow-2xl z-20">
                                     <button onClick={() => setColorIdx((colorIdx + 1) % colors.length)} className="w-12 h-12 rounded-full border-4 border-white/20 transition-transform active:scale-90" 
@@ -276,7 +268,7 @@
                                 {!isAdminAuthenticated ? (
                                     <>
                                         <h2 className="text-2xl font-bold mb-6">Анонимно</h2>
-                                        <textarea value={question} onChange={e => setQuestion(e.target.value)} placeholder="Напиши что-нибудь..." className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 min-h-[140px] focus:outline-none focus:border-cyan-500/50 transition-all resize-none mb-6" />
+                                        <textarea value={question} onChange={e => setQuestion(e.target.value)} placeholder="Напиши что-нибудь..." className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 min-h-[140px] focus:outline-none focus:border-cyan-500/50 transition-all resize-none mb-6 text-white" />
                                         <button onClick={sendQuestion} disabled={isSending || !question.trim()} className="w-full bg-white text-black font-bold py-5 rounded-2xl active:scale-95 disabled:opacity-20 uppercase tracking-widest">Отправить</button>
                                         
                                         <button onClick={() => setShowAdmin(!showAdmin)} className="w-full mt-10 text-[10px] text-white/10 uppercase tracking-widest hover:text-white/30 transition-colors">Admin Terminal</button>
