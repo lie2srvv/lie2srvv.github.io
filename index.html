@@ -45,7 +45,6 @@
         .color-dot { width: 28px; height: 28px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.1); transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
         .color-dot.active { transform: scale(1.3); border-color: #fff; box-shadow: 0 0 15px rgba(255,255,255,0.3); }
 
-        /* Стиль для кнопок меню */
         .nav-link {
             width: 80%;
             max-width: 300px;
@@ -70,8 +69,8 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
         import { getFirestore, collection, addDoc, onSnapshot, Timestamp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
-        window.fb = { initializeApp, getFirestore, collection, addDoc, onSnapshot, Timestamp, getAuth, signInAnonymously };
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+        window.fb = { initializeApp, getFirestore, collection, addDoc, onSnapshot, Timestamp, getAuth, signInAnonymously, onAuthStateChanged };
     </script>
 
     <script type="text/babel">
@@ -92,15 +91,15 @@
                 init() {
                     this.x = Math.random() * w;
                     this.y = Math.random() * -h;
-                    this.size = Math.random() * 4 + 2.5; // Пушистый размер
-                    this.speed = Math.random() * 0.5 + 0.25; // Очень плавно
+                    this.size = Math.random() * 4 + 2.5;
+                    this.speed = Math.random() * 0.5 + 0.25;
                     this.opacity = Math.random() * 0.4 + 0.2;
                     this.swing = Math.random() * 3 + 1.5;
                     this.offset = Math.random() * 2000;
                 }
                 update() {
                     this.y += this.speed;
-                    this.x += Math.sin((Date.now() + this.offset) * 0.0015) * 0.6; // Плавное шатание
+                    this.x += Math.sin((Date.now() + this.offset) * 0.0015) * 0.6;
                     if (this.y > h) this.init();
                 }
                 draw() {
@@ -142,32 +141,37 @@
             const [hue, setHue] = useState(0);
 
             const canvasRef = useRef(null);
-            const currentPath = useRef(null);
+            const currentPathRef = useRef(null);
 
-            const appId = typeof __app_id !== 'undefined' ? __app_id : 'lie2srvv-v5';
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'lie2srvv-v6';
 
             useEffect(() => {
                 startSnow();
-                if (window.fb && window.__firebase_config) {
-                    try {
-                        const config = JSON.parse(window.__firebase_config);
-                        const app = window.fb.initializeApp(config);
-                        const _db = window.fb.getFirestore(app);
-                        const _auth = window.fb.getAuth(app);
-                        setDb(_db);
-                        window.fb.signInAnonymously(_auth).then(res => setUser(res.user));
-                    } catch(e) { console.error("FB Init error"); }
-                }
+                const initFirebase = async () => {
+                    if (window.fb && window.__firebase_config) {
+                        try {
+                            const config = JSON.parse(window.__firebase_config);
+                            const app = window.fb.initializeApp(config);
+                            const _db = window.fb.getFirestore(app);
+                            const _auth = window.fb.getAuth(app);
+                            setDb(_db);
+                            
+                            const res = await window.fb.signInAnonymously(_auth);
+                            setUser(res.user);
+                        } catch(e) { console.error("Firebase init failed", e); }
+                    }
+                };
+                initFirebase();
             }, []);
 
             useEffect(() => {
-                if (db && isAdmin) {
+                if (db && user && isAdmin) {
                     const q = window.fb.collection(db, 'artifacts', appId, 'public', 'data', 'messages');
                     return window.fb.onSnapshot(q, (s) => {
                         setQuestions(s.docs.map(d => ({id: d.id, ...d.data()})).sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)));
                     }, (err) => console.log(err));
                 }
-            }, [db, isAdmin]);
+            }, [db, user, isAdmin]);
 
             useEffect(() => {
                 const chars = "абвгдеёжзийклмнопрстуфхцчшщъыьэюя";
@@ -179,7 +183,8 @@
                     if(currentPage === 'draw' && canvasRef.current) {
                         const ctx = canvasRef.current.getContext('2d');
                         ctx.clearRect(0,0,canvasRef.current.width, canvasRef.current.height);
-                        [...paths, currentPath.current].filter(Boolean).forEach(p => {
+                        // Отрисовка всех сохраненных путей + текущего
+                        [...paths, currentPathRef.current].filter(Boolean).forEach(p => {
                             if (!p.pts?.length) return;
                             ctx.beginPath();
                             ctx.lineWidth = 3.5;
@@ -196,28 +201,52 @@
             }, [currentPage, paths, hue]);
 
             const getPos = (e) => {
+                if (!canvasRef.current) return { x: 0, y: 0 };
                 const r = canvasRef.current.getBoundingClientRect();
                 const x = (e.clientX || (e.touches && e.touches[0].clientX)) - r.left;
                 const y = (e.clientY || (e.touches && e.touches[0].clientY)) - r.top;
                 return { x, y };
             };
 
+            const handleDrawStart = (e) => {
+                currentPathRef.current = { c: colors[colorIdx], pts: [getPos(e)], h: hue };
+            };
+
+            const handleDrawMove = (e) => {
+                if (currentPathRef.current) {
+                    currentPathRef.current.pts.push(getPos(e));
+                }
+            };
+
+            const handleDrawEnd = () => {
+                if (currentPathRef.current) {
+                    setPaths(prev => [...prev, currentPathRef.current]);
+                    currentPathRef.current = null;
+                }
+            };
+
             const sendMsg = async () => {
-                if(!question.trim() || !db || !user) return;
+                if(!question.trim() || !db || !user) {
+                    if (!user) console.error("Auth not ready");
+                    return;
+                }
                 try {
-                    await window.fb.addDoc(window.fb.collection(db, 'artifacts', appId, 'public', 'data', 'messages'), {
+                    const col = window.fb.collection(db, 'artifacts', appId, 'public', 'data', 'messages');
+                    await window.fb.addDoc(col, {
                         text: question,
                         createdAt: window.fb.Timestamp.now(),
                         uid: user.uid
                     });
                     setQuestion('');
                     alert('Отправлено анонимно!');
-                } catch(e) { alert('Ошибка отправки'); }
+                } catch(e) { 
+                    console.error(e);
+                    alert('Ошибка отправки. Попробуйте еще раз.'); 
+                }
             };
 
             return (
                 <div className="w-full h-full flex items-center justify-center p-4">
-                    {/* Кнопка бургера */}
                     <button onClick={() => setMenuOpen(!menuOpen)} className="fixed top-8 right-8 z-[110] p-4 bg-[#1a1a1a] border border-white/10 rounded-2xl active:scale-90 transition-all shadow-xl">
                         <div className="w-6 h-4 flex flex-col justify-between items-end">
                             <span className={`h-0.5 bg-white transition-all ${menuOpen ? 'w-6 rotate-45 translate-y-2' : 'w-6'}`} />
@@ -226,7 +255,6 @@
                         </div>
                     </button>
 
-                    {/* Навигация с плотным фоном */}
                     <nav className={`fixed inset-0 z-[100] bg-[#0a0a0ae0] backdrop-blur-2xl transition-all duration-500 flex flex-col items-center justify-center gap-6 ${menuOpen ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'}`}>
                         <button onClick={() => {setCurrentPage('info'); setMenuOpen(false);}} className="nav-link">
                             <span className={`text-xl font-bold uppercase tracking-widest ${currentPage === 'info' ? 'text-white' : 'text-[#555]'}`}>Профиль</span>
@@ -246,7 +274,7 @@
                                     <h1 className="text-3xl font-bold">lie2srvv</h1>
                                     <span className="text-[10px] font-mono text-white/20">@lie2srvv</span>
                                 </div>
-                                <p className="text-sm text-[#999] leading-relaxed mb-10">Александр, 16 лет. Студент 11 класса. Веб-разработчик. Создаю плавные цифровые решения.</p>
+                                <p className="text-sm text-[#999] leading-relaxed mb-10">Александр, 16 лет. Учусь в 11 классе. Увлекаюсь программированием. Чутка веб-разработчик.</p>
                                 <div className="flex justify-between items-end mb-10">
                                     <div className="space-y-1">
                                         <p className="text-[10px] uppercase tracking-widest text-[#444] font-bold">Страна</p>
@@ -264,12 +292,13 @@
                         {currentPage === 'draw' && (
                             <div className="absolute inset-0">
                                 <canvas ref={canvasRef} id="drawing-canvas" width={window.innerWidth} height={window.innerHeight}
-                                    onMouseDown={e => currentPath.current = {c: colors[colorIdx], pts: [getPos(e)], h: hue}}
-                                    onMouseMove={e => currentPath.current && currentPath.current.pts.push(getPos(e))}
-                                    onMouseUp={() => { if(currentPath.current) setPaths(p => [...p, currentPath.current]); currentPath.current = null; }}
-                                    onTouchStart={e => currentPath.current = {c: colors[colorIdx], pts: [getPos(e)], h: hue}}
-                                    onTouchMove={e => currentPath.current && currentPath.current.pts.push(getPos(e))}
-                                    onTouchEnd={() => { if(currentPath.current) setPaths(p => [...p, currentPath.current]); currentPath.current = null; }}
+                                    onMouseDown={handleDrawStart}
+                                    onMouseMove={handleDrawMove}
+                                    onMouseUp={handleDrawEnd}
+                                    onMouseLeave={handleDrawEnd}
+                                    onTouchStart={handleDrawStart}
+                                    onTouchMove={handleDrawMove}
+                                    onTouchEnd={handleDrawEnd}
                                 />
                                 <div className="fixed bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-5 bg-[#141414]/95 backdrop-blur-2xl p-6 rounded-[3rem] border border-white/10 shadow-2xl">
                                     <div className="flex gap-3">
@@ -322,4 +351,3 @@
     </script>
 </body>
 </html>
-
