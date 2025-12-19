@@ -4,101 +4,126 @@
 <meta charset="UTF-8">
 <title>lie2srvv</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- Подключение мягкого шрифта -->
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
 :root {
     --accent: #00ffff;
     --bg-dark: #0f0f0f;
-    --card-bg: rgba(255, 255, 255, 0.06);
+    --card-bg: rgba(255, 255, 255, 0.08);
+    --font-main: 'Montserrat', sans-serif;
 }
 
 *{box-sizing:border-box;}
 body{
-  margin:0; min-height:100vh; background: radial-gradient(circle at top,#2a2a2a, var(--bg-dark)); 
-  color:#f2f2f2; font-family:Arial,sans-serif; display:flex; justify-content:center; align-items:center; overflow:hidden;
+  margin:0; min-height:100vh; 
+  background: radial-gradient(circle at top, #2c3e50, var(--bg-dark)); 
+  color:#f2f2f2; 
+  font-family: var(--font-main);
+  display:flex; justify-content:center; align-items:center; 
+  overflow:hidden;
   user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 canvas#snow, canvas#draw{position:fixed; inset:0; z-index:0;}
-canvas#draw { pointer-events: none; opacity: 0; transition: opacity 0.5s; }
+canvas#draw { pointer-events: none; opacity: 0; transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
 canvas#draw.active { pointer-events: auto; opacity: 1; }
 
 /* Меню-бургер */
 .menu-btn {
-    position: fixed; top: 20px; right: 20px; z-index: 100;
-    width: 40px; height: 40px; cursor: pointer;
-    display: flex; flex-direction: column; justify-content: space-around; padding: 8px;
-    background: var(--card-bg); backdrop-filter: blur(10px); border-radius: 8px;
-    border: 1px solid rgba(255,255,255,0.1);
+    position: fixed; top: 25px; right: 25px; z-index: 100;
+    width: 45px; height: 45px; cursor: pointer;
+    display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 6px;
+    background: var(--card-bg); backdrop-filter: blur(12px); border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.15);
+    transition: all 0.3s ease;
 }
-.menu-btn span { width: 100%; height: 2px; background: white; transition: 0.3s; }
+.menu-btn:hover { background: rgba(255,255,255,0.15); }
+.menu-btn span { width: 24px; height: 2px; background: white; transition: 0.3s; border-radius: 2px; }
+.menu-btn.open span:nth-child(1) { transform: translateY(8px) rotate(45deg); }
+.menu-btn.open span:nth-child(2) { opacity: 0; }
+.menu-btn.open span:nth-child(3) { transform: translateY(-8px) rotate(-45deg); }
 
 .nav-menu {
-    position: fixed; top: 0; right: -100%; width: 250px; height: 100%;
-    background: rgba(15, 15, 15, 0.95); backdrop-filter: blur(20px);
-    z-index: 99; display: flex; flex-direction: column; padding: 80px 30px;
-    transition: 0.4s ease; border-left: 1px solid rgba(255,255,255,0.1);
+    position: fixed; top: 0; right: -100%; width: 280px; height: 100%;
+    background: rgba(10, 10, 10, 0.9); backdrop-filter: blur(25px);
+    z-index: 99; display: flex; flex-direction: column; padding: 100px 40px;
+    transition: 0.5s cubic-bezier(0.4, 0, 0.2, 1); 
+    border-left: 1px solid rgba(255,255,255,0.1);
 }
 .nav-menu.open { right: 0; }
 .nav-link {
-    color: white; text-decoration: none; font-size: 20px; margin: 15px 0;
-    cursor: pointer; transition: 0.3s; opacity: 0.7;
+    color: white; text-decoration: none; font-size: 22px; margin: 20px 0;
+    cursor: pointer; transition: 0.3s; opacity: 0.6; font-weight: 600;
 }
-.nav-link:hover, .nav-link.active { opacity: 1; color: var(--accent); }
+.nav-link:hover, .nav-link.active { opacity: 1; color: var(--accent); padding-left: 10px; }
 
 /* Инфо-карточка */
 .card{
-  position:relative; z-index:1; background: var(--card-bg); backdrop-filter: blur(14px);
-  border-radius:22px; padding:20px 28px; max-width:420px; width:90%; 
+  position:relative; z-index:1; background: var(--card-bg); backdrop-filter: blur(16px);
+  border-radius:28px; padding:30px 35px; max-width:440px; width:90%; 
   display:flex; flex-direction:column; align-items:flex-start;
-  box-shadow: 0 8px 32px 0 rgba(0,0,0,0.37);
-  border: 1px solid rgba(255,255,255,0.1);
-  transition: opacity 0.5s, transform 0.5s;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+  border: 1px solid rgba(255,255,255,0.12);
+  transition: opacity 0.6s, transform 0.6s;
 }
-.card.hidden { opacity: 0; transform: translateY(20px); pointer-events: none; }
+.card.hidden { opacity: 0; transform: scale(0.95); pointer-events: none; }
 
-h1{margin-top:0; font-size:23px; color:#ffffff;}
-p{line-height:1.55; margin:6px 0; color:#d9d9d9; min-height: 1.2em;}
-.city{font-style:italic; color:#bdbdbd;}
+h1{margin: 0 0 10px 0; font-size:26px; font-weight: 700; color:#ffffff; letter-spacing: -0.5px;}
+p{line-height:1.6; margin:8px 0; color:#e0e0e0; font-weight: 400;}
+.city{font-style:italic; color: var(--accent); font-weight: 600;}
 .divider{
-  border-top:2px solid rgba(255,255,255,0.3); width:100%;
-  margin:15px 0; opacity:0; transition:opacity 0.5s;
+  border-top: 1px solid rgba(255,255,255,0.2); width:100%;
+  margin:20px 0; opacity:0; transition:opacity 0.8s;
 }
-.links { display: flex; flex-direction: column; gap: 8px; }
+.links { display: flex; flex-direction: column; gap: 10px; }
 .links a{
-  color:#ffffff; text-decoration:none; font-weight:bold; 
-  opacity: 0; transform: translateX(-10px); transition: 0.5s;
+  color:#ffffff; text-decoration:none; font-weight:700; font-size: 15px;
+  opacity: 0; transform: translateY(10px); transition: 0.6s ease;
 }
-.links a.visible { opacity: 1; transform: translateX(0); }
+.links a.visible { opacity: 1; transform: translateY(0); }
+.links a:hover { color: var(--accent); text-shadow: 0 0 8px rgba(0,255,255,0.5); }
 
-/* Панель рисования (UI) */
+/* Панель рисования */
 .draw-ui {
-    position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
-    display: none; gap: 15px; align-items: center;
-    background: var(--card-bg); backdrop-filter: blur(10px);
-    padding: 12px 20px; border-radius: 50px; z-index: 10;
-    border: 1px solid rgba(255,255,255,0.1);
+    position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%);
+    display: none; gap: 20px; align-items: center;
+    background: rgba(20, 20, 20, 0.8); backdrop-filter: blur(15px);
+    padding: 12px 25px; border-radius: 60px; z-index: 10;
+    border: 1px solid rgba(255,255,255,0.15);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.4);
 }
-.draw-ui.active { display: flex; animation: slideUp 0.5s ease; }
+.draw-ui.active { display: flex; animation: slideUp 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
 
 .color-indicator {
-    width: 30px; height: 30px; border-radius: 50%; border: 2px solid white;
-    cursor: pointer; transition: transform 0.2s;
+    width: 38px; height: 38px; border-radius: 50%; 
+    border: 3px solid rgba(255,255,255,0.8);
+    cursor: pointer; transition: 0.3s;
+    box-shadow: 0 0 10px rgba(0,0,0,0.3);
 }
-.color-indicator:active { transform: scale(0.9); }
+.color-indicator:hover { transform: scale(1.15); }
 
 .ui-btn {
     background: rgba(255,255,255,0.1); border: none; color: white;
-    padding: 8px 15px; border-radius: 20px; cursor: pointer; font-size: 14px;
+    padding: 10px 22px; border-radius: 30px; cursor: pointer; 
+    font-size: 14px; font-weight: 700; font-family: var(--font-main);
+    transition: 0.3s;
 }
-.ui-btn:hover { background: rgba(255,255,255,0.2); }
+.ui-btn:hover { background: rgba(255,255,255,0.25); transform: translateY(-2px); }
 
-@keyframes slideUp { from { bottom: -50px; opacity: 0; } to { bottom: 30px; opacity: 1; } }
+@keyframes slideUp { from { bottom: -80px; opacity: 0; } to { bottom: 40px; opacity: 1; } }
 
-@media(max-width:480px){.card{padding:16px 20px;} h1{font-size:20px;}}
+@media(max-width:480px){
+    .card{padding:25px; border-radius: 22px;} 
+    h1{font-size:22px;}
+    .draw-ui { width: 85%; justify-content: space-between; padding: 10px 20px; }
+}
 </style>
 </head>
 <body onclick="initAudioOnce()">
 
+<!-- Аудио (без изменений) -->
 <audio id="bgMusic" src="https://cdn.pixabay.com/download/audio/2022/02/07/audio_848412030f.mp3?filename=lofi-chill-medium-version-15941.mp3" loop></audio>
 <audio id="typeSound" src="https://www.soundjay.com/keyboard/keyboard-1.mp3"></audio>
 <audio id="clickSound" src="https://www.soundjay.com/button/button-16.mp3"></audio>
@@ -107,18 +132,15 @@ p{line-height:1.55; margin:6px 0; color:#d9d9d9; min-height: 1.2em;}
 <canvas id="snow"></canvas>
 <canvas id="draw"></canvas>
 
-<!-- Кнопка меню -->
-<div class="menu-btn" onclick="toggleMenu()">
+<div class="menu-btn" id="menuBtn" onclick="toggleMenu()">
     <span></span><span></span><span></span>
 </div>
 
-<!-- Навигация -->
 <div class="nav-menu" id="navMenu">
-    <div class="nav-link active" onclick="showPage('info')">Обо мне</div>
-    <div class="nav-link" onclick="showPage('draw')">Рисование</div>
+    <div class="nav-link active" onclick="showPage('info')">Профиль</div>
+    <div class="nav-link" onclick="showPage('draw')">Холст</div>
 </div>
 
-<!-- Страница 1: Инфо -->
 <div class="card" id="infoCard">
   <h1 id="line1"></h1>
   <p id="line2"></p>
@@ -129,16 +151,15 @@ p{line-height:1.55; margin:6px 0; color:#d9d9d9; min-height: 1.2em;}
   <p id="line5"></p>
   <div class="divider" id="div3"></div>
   <div class="links" id="linksBlock">
-    <p id="linksTitle" style="display:none; margin-bottom: 5px;">Мои ссылки:</p>
+    <p id="linksTitle" style="display:none; margin-bottom: 5px; font-weight: 700; color: #aaa;">Мои соцсети:</p>
     <a id="link_tg" href="https://t.me/lie2survive" target="_blank" rel="noopener noreferrer">💬 Телеграм Канал</a>
     <a id="link_gh" href="https://github.com/lie2srvv" target="_blank" rel="noopener noreferrer">🕹️ Github</a>
   </div>
 </div>
 
-<!-- UI для рисования -->
 <div class="draw-ui" id="drawUI">
-    <div class="color-indicator" id="uiColorIndicator" onclick="changeColor()"></div>
-    <button class="ui-btn" onclick="clearCanvas()">Очистить</button>
+    <div class="color-indicator" id="uiColorIndicator" onclick="changeColor()" title="Сменить цвет (W)"></div>
+    <button class="ui-btn" onclick="clearCanvas()">Очистить (Q)</button>
 </div>
 
 <script>
@@ -146,14 +167,14 @@ let audioInited = false;
 function initAudioOnce() {
     if(audioInited) return;
     const bg = document.getElementById("bgMusic");
-    bg.volume = 0.3;
+    bg.volume = 0.25;
     bg.play().catch(()=>{});
     audioInited = true;
 }
 
-// --- Навигация ---
 function toggleMenu() {
     document.getElementById("navMenu").classList.toggle("open");
+    document.getElementById("menuBtn").classList.toggle("open");
 }
 
 function showPage(page) {
@@ -180,14 +201,14 @@ function showPage(page) {
 
 // --- Печать текста ---
 const sequence = [
-  {type: "text", id: "line1", content: "Я lie2srvv (ТГ: @lie2srvv)"},
+  {type: "text", id: "line1", content: "Я lie2srvv (@lie2srvv)"},
   {type: "text", id: "line2", content: "В жизни зовут Александр."},
   {type: "div", id: "div1"},
   {type: "text", id: "line3", content: "Мне 16 лет, учусь в 11 классе."},
   {type: "div", id: "div2"},
   {type: "text", id: "line4", content: "Живу в России, г. "},
   {type: "city"},
-  {type: "text", id: "line5", content: "Увлекаюсь программированием, люблю всякие логические задачи 🌸"},
+  {type: "text", id: "line5", content: "Программирую и решаю логические задачи 🌸"},
   {type: "div", id: "div3"},
   {type: "links"}
 ];
@@ -201,12 +222,12 @@ function runSequence() {
     if (charIndex < item.content.length) {
       el.textContent += item.content[charIndex++];
       const s = document.getElementById("typeSound").cloneNode();
-      s.volume = 0.1; s.play();
-      setTimeout(runSequence, 50);
-    } else { seqIndex++; charIndex = 0; setTimeout(runSequence, 250); }
+      s.volume = 0.08; s.play();
+      setTimeout(runSequence, 55);
+    } else { seqIndex++; charIndex = 0; setTimeout(runSequence, 350); }
   } else if (item.type === "div") {
     document.getElementById(item.id).style.opacity = "1";
-    seqIndex++; setTimeout(runSequence, 300);
+    seqIndex++; setTimeout(runSequence, 400);
   } else if (item.type === "city") {
     const span = document.createElement("span"); span.className = "city";
     document.getElementById("line4").appendChild(span);
@@ -215,17 +236,17 @@ function runSequence() {
       let c = letters[Math.floor(Math.random()*letters.length)].toUpperCase();
       for(let i=0; i<5; i++) c += letters[Math.floor(Math.random()*letters.length)];
       span.textContent = c;
-    }, 40);
-    seqIndex++; setTimeout(runSequence, 150);
+    }, 45);
+    seqIndex++; setTimeout(runSequence, 200);
   } else if (item.type === "links") {
     document.getElementById("linksTitle").style.display = "block";
     setTimeout(() => {
       document.getElementById("link_tg").classList.add("visible");
-      setTimeout(() => { document.getElementById("link_gh").classList.add("visible"); }, 400);
-    }, 200);
+      setTimeout(() => { document.getElementById("link_gh").classList.add("visible"); }, 450);
+    }, 300);
   }
 }
-setTimeout(runSequence, 1000);
+setTimeout(runSequence, 1200);
 
 // --- Снег ---
 const snCanvas = document.getElementById("snow");
@@ -233,9 +254,9 @@ const snCtx = snCanvas.getContext("2d");
 let sw, sh;
 function resSnow(){ sw=snCanvas.width=window.innerWidth; sh=snCanvas.height=window.innerHeight; }
 resSnow(); window.addEventListener("resize", resSnow);
-const flakes = Array.from({length:60},()=>({x:Math.random()*sw,y:Math.random()*sh,r:Math.random()*2,s:Math.random()*0.4+0.2}));
+const flakes = Array.from({length:70},()=>({x:Math.random()*sw,y:Math.random()*sh,r:Math.random()*2,s:Math.random()*0.4+0.3}));
 function drawSnow(){
-  snCtx.clearRect(0,0,sw,sh); snCtx.fillStyle = "rgba(255,255,255,0.5)";
+  snCtx.clearRect(0,0,sw,sh); snCtx.fillStyle = "rgba(255,255,255,0.4)";
   flakes.forEach(f => {
     snCtx.beginPath(); snCtx.arc(f.x, f.y, f.r, 0, Math.PI*2); snCtx.fill();
     f.y += f.s; if(f.y > sh) f.y = -5;
@@ -248,6 +269,7 @@ drawSnow();
 const drCanvas = document.getElementById("draw");
 const drCtx = drCanvas.getContext("2d");
 const drawSound = document.getElementById("drawSound");
+
 function resDraw(){
   const img = drCtx.getImageData(0,0,drCanvas.width || 1, drCanvas.height || 1);
   drCanvas.width = window.innerWidth; drCanvas.height = window.innerHeight;
@@ -256,30 +278,47 @@ function resDraw(){
 resDraw(); window.addEventListener("resize", resDraw);
 
 let drawing = false, lx, ly;
-let colors = ["#FFFFFF", "#FF0000", "#00FF00", "#00FFFF", "#FFFF00", "rainbow"];
+// 1. Белый, 2-8. Цвета радуги, 9. Градиент
+const colors = [
+    "#FFFFFF", // Белый
+    "#FF0000", // Красный
+    "#FF7F00", // Оранжевый
+    "#FFFF00", // Желтый
+    "#00FF00", // Зеленый
+    "#0000FF", // Синий
+    "#4B0082", // Индиго
+    "#9400D3", // Фиолетовый
+    "rainbow"  // RGB Градиент
+];
 let curCol = 0;
 let hue = 0;
 
 function updateUI() {
     const dot = document.getElementById("uiColorIndicator");
-    dot.style.background = colors[curCol] === "rainbow" ? `hsl(${hue},100%,50%)` : colors[curCol];
+    if(colors[curCol] === "rainbow") {
+        dot.style.background = `linear-gradient(45deg, hsl(${hue},100%,50%), hsl(${(hue+60)%360},100%,50%))`;
+    } else {
+        dot.style.background = colors[curCol];
+    }
 }
 
 function changeColor() {
     curCol = (curCol + 1) % colors.length;
     updateUI();
-    document.getElementById("clickSound").play();
+    const s = document.getElementById("clickSound").cloneNode();
+    s.volume = 0.2; s.play();
 }
 
 function clearCanvas() {
     drCtx.clearRect(0,0,drCanvas.width,drCanvas.height);
-    document.getElementById("clickSound").play();
+    const s = document.getElementById("clickSound").cloneNode();
+    s.volume = 0.2; s.play();
 }
 
 function startDrawing(x, y) {
   if(!drCanvas.classList.contains('active')) return;
   drawing = true; lx = x; ly = y;
-  drawSound.volume = 0.3; drawSound.play();
+  drawSound.volume = 0.4; drawSound.play();
 }
 
 function stopDrawing() { drawing = false; drawSound.pause(); lx = null; ly = null; }
@@ -289,7 +328,7 @@ window.addEventListener("mouseup", stopDrawing);
 drCanvas.addEventListener("mousemove", e => {
   if(!drawing) return;
   drCtx.strokeStyle = colors[curCol] === "rainbow" ? `hsl(${hue},100%,50%)` : colors[curCol];
-  drCtx.lineWidth = 4; drCtx.lineCap = "round";
+  drCtx.lineWidth = 5; drCtx.lineCap = "round"; drCtx.lineJoin = "round";
   drCtx.beginPath(); drCtx.moveTo(lx, ly); drCtx.lineTo(e.clientX, e.clientY); drCtx.stroke();
   lx = e.clientX; ly = e.clientY;
 });
@@ -303,20 +342,20 @@ drCanvas.addEventListener("touchmove", e => {
   if(!drawing) return;
   const t = e.touches[0];
   drCtx.strokeStyle = colors[curCol] === "rainbow" ? `hsl(${hue},100%,50%)` : colors[curCol];
-  drCtx.lineWidth = 4; drCtx.lineCap = "round";
+  drCtx.lineWidth = 5; drCtx.lineCap = "round"; drCtx.lineJoin = "round";
   drCtx.beginPath(); drCtx.moveTo(lx, ly); drCtx.lineTo(t.clientX, t.clientY); drCtx.stroke();
   lx = t.clientX; ly = t.clientY;
 }, {passive: false});
 
-// Клавиатура (для десктопа)
 document.addEventListener("keydown", e => {
     if(!drCanvas.classList.contains('active')) return;
-    if(e.key.toLowerCase() === 'w' || e.key.toLowerCase() === 'ц') changeColor();
-    if(e.key.toLowerCase() === 'q' || e.key.toLowerCase() === 'й') clearCanvas();
+    const key = e.key.toLowerCase();
+    if(key === 'w' || key === 'ц') changeColor();
+    if(key === 'q' || key === 'й') clearCanvas();
 });
 
-function anim() {
-  hue = (hue + 2) % 360;
+function anim(t) {
+  hue = (hue + 1.5) % 360;
   if(colors[curCol] === "rainbow") updateUI();
   requestAnimationFrame(anim);
 }
