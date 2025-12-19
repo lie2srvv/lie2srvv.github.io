@@ -16,15 +16,14 @@
             100% { transform: translateY(110vh) rotate(360deg); }
         }
         .animate-snow { animation: snow linear infinite; }
-        .animate-in { animation: fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px) scale(0.95); }
-            to { opacity: 1; transform: translateY(0) scale(1); }
+        .animate-fadeUp { animation: fadeUp 0.8s cubic-bezier(0.23, 1, 0.32, 1) forwards; }
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
         }
         .custom-scroll::-webkit-scrollbar { width: 4px; }
         .custom-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
         canvas { touch-action: none; }
-        .city-noise { font-style: italic; font-weight: 700; color: #555; text-transform: uppercase; letter-spacing: 1px; }
     </style>
 </head>
 <body>
@@ -54,7 +53,7 @@
             const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
 
             const canvasRef = useRef(null);
-            const pathsRef = useRef([]); // Храним нарисованные линии для анимации градиента
+            const pathsRef = useRef([]); 
             const [drawing, setDrawing] = useState(false);
             const [colorIdx, setColorIdx] = useState(0);
             const colors = ["#FFFFFF", "#FF0000", "#FF7F00", "#FFFF00", "#00FF00", "#0000FF", "#4B0082", "#9400D3", "rainbow"];
@@ -66,7 +65,6 @@
                 const checkFb = setInterval(() => {
                     if (window.fb) {
                         clearInterval(checkFb);
-                        // Конфиг берется из глобальной переменной среды или пустой объект
                         const firebaseConfig = window.__firebase_config ? JSON.parse(window.__firebase_config) : {};
                         try {
                             const app = window.fb.initializeApp(firebaseConfig);
@@ -81,7 +79,6 @@
                 return () => clearInterval(checkFb);
             }, []);
 
-            // Подписка на вопросы
             useEffect(() => {
                 if (!db || !user || !isAdminAuthenticated) return;
                 const qCol = window.fb.collection(db, 'artifacts', appId, 'public', 'data', 'questions');
@@ -91,7 +88,6 @@
                 });
             }, [db, user, isAdminAuthenticated]);
 
-            // Анимация и перерисовка холста
             useEffect(() => {
                 let frame;
                 const render = () => {
@@ -122,26 +118,22 @@
             }, [hue]);
 
             const startDrawing = (e) => {
-                const rect = canvasRef.current.getBoundingClientRect();
-                const x = (e.clientX || e.touches[0].clientX) - rect.left;
-                const y = (e.clientY || e.touches[0].clientY) - rect.top;
-                
-                const newPath = {
-                    color: colors[colorIdx],
-                    points: [{x, y}]
-                };
-                pathsRef.current.push(newPath);
-                setDrawing(true);
-            };
-
-            const drawMove = (e) => {
-                if (!drawing) return;
+                if (currentPage !== 'draw') return;
                 const rect = canvasRef.current.getBoundingClientRect();
                 const x = (e.clientX || (e.touches && e.touches[0].clientX)) - rect.left;
                 const y = (e.clientY || (e.touches && e.touches[0].clientY)) - rect.top;
                 
-                const currentPath = pathsRef.current[pathsRef.current.length - 1];
-                currentPath.points.push({x, y});
+                pathsRef.current.push({ color: colors[colorIdx], points: [{x, y}] });
+                setDrawing(true);
+            };
+
+            const drawMove = (e) => {
+                if (!drawing || currentPage !== 'draw') return;
+                const rect = canvasRef.current.getBoundingClientRect();
+                const x = (e.clientX || (e.touches && e.touches[0].clientX)) - rect.left;
+                const y = (e.clientY || (e.touches && e.touches[0].clientY)) - rect.top;
+                
+                pathsRef.current[pathsRef.current.length - 1].points.push({x, y});
             };
 
             const sendQuestion = async () => {
@@ -163,7 +155,7 @@
             };
 
             const CityNoise = () => {
-                const [noise, setNoise] = useState('');
+                const [noise, setNoise] = useState('......');
                 useEffect(() => {
                     const chars = "абвгдеёжзийклмнопрстуфхцчшщъыьэюя";
                     const timer = setInterval(() => {
@@ -173,23 +165,23 @@
                     }, 50);
                     return () => clearInterval(timer);
                 }, []);
-                return <span className="city-noise">{noise}</span>;
+                return <span className="italic font-bold text-white/30">{noise}</span>;
             };
 
             return (
-                <div className="h-screen w-screen relative overflow-hidden bg-[#050505]">
-                    {/* Снег */}
+                <div className="min-h-screen w-full relative bg-[#0a0a0a]">
+                    {/* Фон: Снег */}
                     <div className="fixed inset-0 pointer-events-none z-0 opacity-20">
-                        {[...Array(25)].map((_, i) => (
+                        {[...Array(30)].map((_, i) => (
                             <div key={i} className="absolute bg-white rounded-full animate-snow" style={{
                                 left: `${Math.random()*100}%`, width: '1.5px', height: '1.5px',
-                                animationDuration: `${Math.random()*12+6}s`, top: '-5%'
+                                animationDuration: `${Math.random()*10+5}s`, top: '-5%'
                             }} />
                         ))}
                     </div>
 
-                    {/* Меню */}
-                    <button onClick={() => setMenuOpen(!menuOpen)} className="fixed top-6 right-6 z-50 p-4 bg-white/5 backdrop-blur-md rounded-2xl border border-white/10 hover:bg-white/10 transition-all">
+                    {/* Бургер-меню */}
+                    <button onClick={() => setMenuOpen(!menuOpen)} className="fixed top-6 right-6 z-50 p-4 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl hover:bg-white/10 transition-all active:scale-90">
                         <div className="w-6 h-5 flex flex-col justify-between items-end">
                             <span className={`h-0.5 bg-white transition-all ${menuOpen ? 'w-6 rotate-45 translate-y-2' : 'w-6'}`} />
                             <span className={`h-0.5 bg-white transition-all ${menuOpen ? 'opacity-0' : 'w-4'}`} />
@@ -197,40 +189,47 @@
                         </div>
                     </button>
 
-                    <div className={`fixed inset-0 z-40 bg-black/95 backdrop-blur-2xl transition-all duration-500 flex flex-col items-center justify-center gap-10 ${menuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-                        {['info', 'draw', 'ask'].map(p => (
-                            <button key={p} onClick={() => {setCurrentPage(p); setMenuOpen(false)}} className={`text-4xl font-black uppercase tracking-tighter transition-all ${currentPage === p ? 'text-cyan-400 scale-110' : 'text-white/20 hover:text-white'}`}>
+                    {/* Навигация */}
+                    <div className={`fixed inset-0 z-40 bg-black/95 backdrop-blur-3xl transition-all duration-500 flex flex-col items-center justify-center gap-10 ${menuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+                        {['info', 'draw', 'ask'].map((p) => (
+                            <button key={p} onClick={() => {setCurrentPage(p); setMenuOpen(false);}} className={`text-3xl font-bold uppercase tracking-widest transition-all ${currentPage === p ? 'text-cyan-400 scale-110' : 'text-white/30 hover:text-white'}`}>
                                 {p === 'info' ? 'Профиль' : p === 'draw' ? 'Холст' : 'Вопросы'}
                             </button>
                         ))}
                     </div>
 
-                    <main className="h-full w-full flex items-center justify-center p-6 relative z-10">
+                    <main className="relative z-10 h-screen w-full flex items-center justify-center p-6">
                         {currentPage === 'info' && (
-                            <div className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 p-10 rounded-[2.5rem] max-w-md w-full animate-in shadow-2xl">
-                                <h1 className="text-3xl font-black tracking-tight">lie2srvv</h1>
-                                <p className="text-white/30 mb-8 font-bold text-sm tracking-widest">@lie2srvv</p>
+                            <div className="bg-white/[0.03] backdrop-blur-2xl border border-white/10 p-10 rounded-[2.5rem] max-w-md w-full shadow-2xl animate-fadeUp">
+                                <h1 className="text-3xl font-bold mb-2 tracking-tight">lie2srvv</h1>
+                                <p className="text-white/40 mb-8 font-medium italic">@lie2srvv</p>
                                 
-                                <div className="space-y-6 text-[15px] leading-relaxed">
-                                    <p className="flex flex-col">
-                                        <span className="text-[10px] text-white/20 uppercase font-bold tracking-widest mb-1">Личность</span>
-                                        Александр, 16 лет, 11 класс
-                                    </p>
-                                    <p className="flex flex-col">
-                                        <span className="text-[10px] text-white/20 uppercase font-bold tracking-widest mb-1">Локация</span>
-                                        Россия, г. <CityNoise />
-                                    </p>
-                                    <p className="flex flex-col">
-                                        <span className="text-[10px] text-white/20 uppercase font-bold tracking-widest mb-1">Интересы</span>
-                                        Программирую и решаю логические задачи 🌸
-                                    </p>
+                                <div className="space-y-6 text-sm">
+                                    <div className="flex flex-col gap-1">
+                                        <span className="text-[10px] uppercase tracking-widest text-white/20 font-bold">Личное</span>
+                                        <p className="text-white/90 font-medium">Александр, 16 лет</p>
+                                    </div>
+                                    <div className="flex flex-col gap-1">
+                                        <span className="text-[10px] uppercase tracking-widest text-white/20 font-bold">Локация</span>
+                                        <p className="text-white/90 font-medium">Россия, г. <CityNoise /></p>
+                                    </div>
+                                    <div className="flex flex-col gap-1">
+                                        <span className="text-[10px] uppercase tracking-widest text-white/20 font-bold">О себе</span>
+                                        <p className="text-white/90 leading-relaxed">Программирую, учусь в 11 классе. Люблю логические задачки 🌸</p>
+                                    </div>
                                 </div>
 
-                                <div className="h-px bg-white/5 my-8" />
+                                <div className="h-px bg-white/10 my-8" />
                                 
-                                <div className="grid grid-cols-2 gap-3">
-                                    <a href="https://t.me/lie2survive" target="_blank" className="p-4 bg-white/5 rounded-2xl border border-white/5 text-center font-bold hover:bg-white/10 transition-all text-sm">TG</a>
-                                    <a href="https://github.com/lie2srvv" target="_blank" className="p-4 bg-white/5 rounded-2xl border border-white/5 text-center font-bold hover:bg-white/10 transition-all text-sm">GH</a>
+                                <div className="flex flex-col gap-3">
+                                    <a href="https://t.me/lie2survive" target="_blank" className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5 hover:border-cyan-500/30 transition-all group">
+                                        <span className="font-bold">Телеграм</span>
+                                        <span className="text-cyan-400 group-hover:translate-x-1 transition-transform">→</span>
+                                    </a>
+                                    <a href="https://github.com/lie2srvv" target="_blank" className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5 hover:border-cyan-500/30 transition-all group">
+                                        <span className="font-bold">Github</span>
+                                        <span className="text-cyan-400 group-hover:translate-x-1 transition-transform">→</span>
+                                    </a>
                                 </div>
                             </div>
                         )}
@@ -241,43 +240,44 @@
                                     onMouseDown={startDrawing} onMouseMove={drawMove} onMouseUp={() => setDrawing(false)}
                                     onTouchStart={(e) => startDrawing(e.touches[0])} onTouchMove={(e) => drawMove(e.touches[0])} onTouchEnd={() => setDrawing(false)}
                                 />
-                                <div className="fixed bottom-10 left-1/2 -translate-x-1/2 flex items-center gap-6 bg-black/80 p-4 px-8 rounded-full border border-white/10 backdrop-blur-xl shadow-2xl">
-                                    <button onClick={() => setColorIdx((colorIdx+1)%colors.length)} className="w-10 h-10 rounded-full border-2 border-white/40 shadow-lg transition-transform active:scale-90" 
+                                <div className="fixed bottom-12 left-1/2 -translate-x-1/2 flex items-center gap-6 bg-black/80 backdrop-blur-2xl p-4 px-8 rounded-full border border-white/10 shadow-2xl">
+                                    <button onClick={() => setColorIdx((colorIdx + 1) % colors.length)} className="w-12 h-12 rounded-full border-4 border-white/20 transition-transform active:scale-90" 
                                         style={{background: colors[colorIdx] === 'rainbow' ? `hsl(${hue},100%,50%)` : colors[colorIdx]}} />
-                                    <button onClick={() => { pathsRef.current = []; }} className="text-[10px] font-black uppercase tracking-[0.2em] opacity-50 hover:opacity-100 transition-opacity">Clear</button>
+                                    <button onClick={() => { pathsRef.current = []; }} className="bg-white/10 px-6 py-3 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-white/20 transition-all">Clear</button>
                                 </div>
                             </div>
                         )}
 
                         {currentPage === 'ask' && (
-                            <div className="bg-white/[0.02] backdrop-blur-3xl border border-white/10 p-10 rounded-[2.5rem] max-w-md w-full animate-in shadow-2xl">
+                            <div className="bg-white/[0.03] backdrop-blur-2xl border border-white/10 p-10 rounded-[2.5rem] max-w-md w-full shadow-2xl animate-fadeUp">
                                 {!isAdminAuthenticated ? (
                                     <>
-                                        <h2 className="text-xl font-black uppercase tracking-tight mb-6">Ask me anything</h2>
-                                        <textarea value={question} onChange={e => setQuestion(e.target.value)} placeholder="Твой секрет или вопрос..." className="w-full bg-white/5 border border-white/10 rounded-3xl p-6 min-h-[160px] focus:outline-none focus:border-cyan-500/30 transition-all resize-none mb-6 placeholder:text-white/10" />
-                                        <button onClick={sendQuestion} disabled={isSending || !question.trim()} className="w-full bg-white text-black font-black py-5 rounded-3xl active:scale-95 disabled:opacity-20 uppercase tracking-widest text-sm">Отправить</button>
-                                        <button onClick={() => setShowAdmin(!showAdmin)} className="w-full mt-10 text-[9px] text-white/5 uppercase tracking-[0.4em] hover:text-white/20 transition-colors">Admin Terminal</button>
+                                        <h2 className="text-2xl font-bold mb-6">Анонимно</h2>
+                                        <textarea value={question} onChange={e => setQuestion(e.target.value)} placeholder="Напиши что-нибудь..." className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 min-h-[140px] focus:outline-none focus:border-cyan-500/50 transition-all resize-none mb-6" />
+                                        <button onClick={sendQuestion} disabled={isSending || !question.trim()} className="w-full bg-white text-black font-bold py-5 rounded-2xl active:scale-95 disabled:opacity-20 uppercase tracking-widest">Отправить</button>
+                                        
+                                        <button onClick={() => setShowAdmin(!showAdmin)} className="w-full mt-10 text-[10px] text-white/10 uppercase tracking-widest hover:text-white/30 transition-colors">Admin Terminal</button>
                                         {showAdmin && (
-                                            <div className="mt-4 flex gap-2 animate-in">
-                                                <input type="password" value={adminPass} onChange={e => setAdminPass(e.target.value)} className="bg-white/5 border border-white/10 rounded-xl px-4 flex-1 text-sm outline-none" />
-                                                <button onClick={() => adminPass === 'Lie2Admin' ? setIsAdminAuthenticated(true) : alert('Доступ запрещен')} className="bg-cyan-500 text-black px-4 py-2 rounded-xl text-xs font-bold">LOG</button>
+                                            <div className="mt-4 flex gap-2 animate-fadeUp">
+                                                <input type="password" value={adminPass} onChange={e => setAdminPass(e.target.value)} className="bg-white/5 border border-white/10 rounded-xl px-4 flex-1 text-sm outline-none" placeholder="Pass" />
+                                                <button onClick={() => adminPass === 'Lie2Admin' ? setIsAdminAuthenticated(true) : alert('!')} className="bg-cyan-500 text-black px-4 py-2 rounded-xl text-xs font-bold">OK</button>
                                             </div>
                                         )}
                                     </>
                                 ) : (
                                     <div className="h-[450px] flex flex-col">
                                         <div className="flex justify-between items-center mb-6">
-                                            <h2 className="font-black text-lg uppercase tracking-tighter">Inbox ({questionsList.length})</h2>
-                                            <button onClick={() => setIsAdminAuthenticated(false)} className="text-[10px] text-cyan-400 font-bold uppercase tracking-widest">Exit</button>
+                                            <h2 className="font-bold text-xl uppercase tracking-tighter">Inbox ({questionsList.length})</h2>
+                                            <button onClick={() => setIsAdminAuthenticated(false)} className="text-xs text-cyan-400 font-bold uppercase tracking-widest">Logout</button>
                                         </div>
                                         <div className="flex-1 overflow-y-auto space-y-4 custom-scroll pr-2">
                                             {questionsList.map(q => (
                                                 <div key={q.id} className="bg-white/5 p-5 rounded-3xl border border-white/5">
                                                     <p className="text-sm font-medium leading-relaxed">{q.text}</p>
-                                                    <p className="text-[9px] opacity-20 mt-3 font-mono">{q.createdAt?.toDate().toLocaleString()}</p>
+                                                    <p className="text-[10px] opacity-20 mt-3 font-mono">{q.createdAt?.toDate().toLocaleString()}</p>
                                                 </div>
                                             ))}
-                                            {questionsList.length === 0 && <p className="text-center opacity-10 mt-20 uppercase tracking-widest text-xs">No data found</p>}
+                                            {questionsList.length === 0 && <p className="text-center opacity-10 mt-20 text-xs">No questions</p>}
                                         </div>
                                     </div>
                                 )}
