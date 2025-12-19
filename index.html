@@ -23,9 +23,7 @@ canvas#drawing-canvas { position:absolute; top:0; left:0; }
 .color-dot.active { transform:scale(1.3); border-color:#fff; box-shadow:0 0 15px rgba(255,255,255,0.3);}
 .rgb-btn { background:linear-gradient(45deg,#ff0000,#ff7300,#fffb00,#48ff00,#00ffd5,#002bff,#7a00ff,#ff00c8,#ff0000); background-size:400%; animation:moveGradient 5s linear infinite; border:none; color:white; font-weight:bold; text-shadow:0 1px 2px rgba(0,0,0,0.5);}
 @keyframes moveGradient{0%{background-position:0% 50%;}50%{background-position:100% 50%;}100%{background-position:0% 50%;}}
-.custom-color-input{width:30px;height:30px;padding:0;border:none;border-radius:50%;cursor:pointer;overflow:hidden;}
-.custom-color-input::-webkit-color-swatch-wrapper{padding:0;}
-.custom-color-input::-webkit-color-swatch{border:none;border-radius:50%;}
+.custom-color-input{width:50px;height:30px;padding:0 5px;border:none;border-radius:0.5rem;cursor:pointer; background:#222; color:#fff; text-transform:uppercase;}
 .nav-link{width:80%;max-width:300px;padding:20px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.05);border-radius:1.5rem;text-align:center;transition:all 0.3s ease;}
 </style>
 </head>
@@ -66,18 +64,14 @@ const App = ()=>{
     const canvasRef=useRef(null);
     const currentPathRef=useRef(null);
 
-    const colors=["#FFFFFF","#FF3B30","#FF9500","#FFCC00","#4CD964","#007AFF","#5856D6","#AF52DE"];
+    const colors=["#FFFFFF","#FF0000","#FF7F00","#FFFF00","#00FF00","#0000FF","#4B0082","#8B00FF"];
 
     useEffect(()=>{ startSnow(); },[]);
 
     useEffect(()=>{
-        const chars="абвгдеёжзийклмнопрстуфхцчшщъыьэюя";
         let frame;
         const update=()=>{
             setHue(h=> (h+1)%360);
-            if(Math.random()>0.1){
-                setCity(Array(6).fill(0).map(()=>chars[Math.floor(Math.random()*chars.length)]).join('').toUpperCase());
-            }
             if(currentPage==='draw' && canvasRef.current){
                 const ctx=canvasRef.current.getContext('2d');
                 ctx.clearRect(0,0,canvasRef.current.width,canvasRef.current.height);
@@ -93,9 +87,7 @@ const App = ()=>{
                     ctx.stroke();
                 };
                 paths.forEach(drawPath);
-                if(currentPathRef.current){
-                    drawPath(currentPathRef.current);
-                }
+                if(currentPathRef.current){ drawPath(currentPathRef.current); }
             }
             frame=requestAnimationFrame(update);
         };
@@ -160,13 +152,11 @@ const App = ()=>{
                             onTouchStart={startDrawing} onTouchMove={moveDrawing} onTouchEnd={endDrawing}
                         />
                         <div className="fixed bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-5 bg-[#141414]/95 backdrop-blur-2xl p-6 rounded-[3rem] border border-white/10 shadow-2xl w-[90%] max-w-fit">
-                            <div className="flex gap-3 items-center flex-wrap justify-center">
+                            <div className="flex gap-2 items-center flex-wrap justify-center">
                                 {colors.map((c,i)=>(
                                     <button key={i} onClick={()=>{setCurrentColor(c); setIsRGB(false);}} className={`color-dot ${currentColor===c&&!isRGB?'active':''}`} style={{background:c}}/>
                                 ))}
-                                <div className="relative flex items-center justify-center">
-                                    <input type="color" value={currentColor} onChange={(e)=>{setCurrentColor(e.target.value); setIsRGB(false);}} className="custom-color-input"/>
-                                </div>
+                                <input type="text" value={currentColor} maxLength={7} onChange={(e)=>setCurrentColor(e.target.value)} className="custom-color-input" placeholder="#FFFFFF"/>
                                 <button onClick={()=>setIsRGB(!isRGB)} className={`rgb-btn px-4 py-1.5 rounded-full text-[10px] uppercase tracking-tighter shadow-inner transition-all ${isRGB?'ring-2 ring-white scale-110':'opacity-80'}`}>RGB</button>
                             </div>
                             <div className="flex gap-3 items-center mt-2">
