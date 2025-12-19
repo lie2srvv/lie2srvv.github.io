@@ -173,18 +173,24 @@
   // build palette UI
   function renderPalette(){
     paletteEl.innerHTML = '';
-    // первая строка: белый, чёрный и кнопка-ластик
+
+    // контейнер палитры — вертикально, без горизонтального скролла
+    paletteEl.style.display = 'flex';
+    paletteEl.style.flexDirection = 'column';
+    paletteEl.style.overflowX = 'hidden';
+
+    // первая строка: белый, чёрный, ластик
     const row1 = document.createElement('div');
     row1.style.display = 'flex';
+    row1.style.flexWrap = 'nowrap';
     row1.style.gap = '8px';
-    row1.style.marginBottom = '8px';
+    row1.style.marginBottom = '10px';
 
     TOP_COLORS.forEach(col => {
       const b = document.createElement('button');
       b.className = 'sw';
       b.style.background = col;
       b.dataset.color = col.toLowerCase();
-      b.title = col;
       b.addEventListener('click', ()=>{ useRGB = false; isEraser = false; currentColor = col; updateUI(); });
       row1.appendChild(b);
     });
@@ -192,23 +198,19 @@
     const eraser = document.createElement('button');
     eraser.className = 'paletteBtn';
     eraser.textContent = 'Ластик';
-    eraser.style.padding = '6px 10px';
     eraser.dataset.eraser = '1';
     eraser.addEventListener('click', ()=>{
       useRGB = false;
       isEraser = true;
-      // set currentColor to computed body background (in hex if possible)
-      const bg = getComputedStyle(document.body).backgroundColor;
-      currentColor = bg;
+      currentColor = getComputedStyle(document.body).backgroundColor;
       updateUI();
     });
     row1.appendChild(eraser);
 
-    paletteEl.appendChild(row1);
-
     // вторая строка: цвета радуги
     const row2 = document.createElement('div');
     row2.style.display = 'flex';
+    row2.style.flexWrap = 'wrap';
     row2.style.gap = '8px';
 
     BOTTOM_COLORS.forEach(col => {
@@ -216,10 +218,11 @@
       b.className = 'sw';
       b.style.background = col;
       b.dataset.color = col.toLowerCase();
-      b.title = col;
       b.addEventListener('click', ()=>{ useRGB = false; isEraser = false; currentColor = col; updateUI(); });
       row2.appendChild(b);
     });
+
+    paletteEl.appendChild(row1);
     paletteEl.appendChild(row2);
   }
   renderPalette();
