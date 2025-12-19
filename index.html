@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>lie2srvv</title>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -10,28 +10,32 @@
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <style>
-        body { background-color: #080808; margin: 0; font-family: 'Montserrat', sans-serif; color: white; overflow: hidden; touch-action: none; }
+        body { background-color: #050505; margin: 0; font-family: 'Montserrat', sans-serif; color: white; overflow: hidden; touch-action: none; }
         
         /* Плавный снег без мерцания */
         @keyframes fall {
-            0% { transform: translateY(-10vh); }
-            100% { transform: translateY(110vh); }
+            0% { transform: translateY(-20px); opacity: 0; }
+            10% { opacity: 0.3; }
+            90% { opacity: 0.3; }
+            100% { transform: translateY(105vh); opacity: 0; }
         }
         .snow-particle {
             position: absolute;
-            background: rgba(255, 255, 255, 0.4);
+            background: white;
             border-radius: 50%;
             pointer-events: none;
             animation: fall linear infinite;
         }
 
-        .animate-fadeUp { animation: fadeUp 0.6s ease-out forwards; }
+        .animate-fadeUp { animation: fadeUp 0.5s ease-out forwards; }
         @keyframes fadeUp {
-            from { opacity: 0; transform: translateY(15px); }
+            from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
         }
         
-        canvas { touch-action: none; display: block; position: absolute; top: 0; left: 0; width: 100%; height: 100%; cursor: crosshair; }
+        #canvas-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; overflow: hidden; }
+        canvas { display: block; width: 100% !important; height: 100% !important; touch-action: none; cursor: crosshair; }
+        
         .no-select { user-select: none; -webkit-user-select: none; }
         .custom-scroll::-webkit-scrollbar { width: 4px; }
         .custom-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
@@ -65,7 +69,7 @@
             const pathsRef = useRef([]); 
             const [drawing, setDrawing] = useState(false);
             const [colorIdx, setColorIdx] = useState(0);
-            const colors = ["#FFFFFF", "#FF4D4D", "#FFA500", "#FFFF4D", "#4DFF4D", "#4D4DFF", "#994DFF", "rainbow"];
+            const colors = ["#FFFFFF", "#FF3E3E", "#FFB347", "#FFFF80", "#77DD77", "#779ECB", "#B39EB5", "rainbow"];
             const [hue, setHue] = useState(0);
 
             const appId = 'lie2srvv-app';
@@ -98,57 +102,66 @@
                 return () => unsubscribe();
             }, [db, user, isAdminAuthenticated]);
 
-            const resizeCanvas = () => {
-                if (canvasRef.current) {
-                    canvasRef.current.width = window.innerWidth;
-                    canvasRef.current.height = window.innerHeight;
-                }
+            // Исправленная функция ресайза с учетом DPI
+            const setupCanvas = () => {
+                const canvas = canvasRef.current;
+                if (!canvas) return;
+                const dpr = window.devicePixelRatio || 1;
+                const rect = canvas.parentElement.getBoundingClientRect();
+                
+                canvas.width = rect.width * dpr;
+                canvas.height = rect.height * dpr;
+                
+                const ctx = canvas.getContext('2d');
+                ctx.scale(dpr, dpr);
+                renderScene();
             };
 
             useEffect(() => {
-                window.addEventListener('resize', resizeCanvas);
-                resizeCanvas();
-                return () => window.removeEventListener('resize', resizeCanvas);
-            }, []);
+                window.addEventListener('resize', setupCanvas);
+                setupCanvas();
+                return () => window.removeEventListener('resize', setupCanvas);
+            }, [currentPage]);
 
-            // Отрисовка
+            const renderScene = () => {
+                const canvas = canvasRef.current;
+                if (!canvas) return;
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                pathsRef.current.forEach(path => {
+                    if (path.points.length < 1) return;
+                    ctx.beginPath();
+                    ctx.lineWidth = 2.5;
+                    ctx.lineCap = 'round';
+                    ctx.lineJoin = 'round';
+                    ctx.strokeStyle = path.color === 'rainbow' ? `hsl(${hue}, 100%, 75%)` : path.color;
+                    
+                    ctx.moveTo(path.points[0].x, path.points[0].y);
+                    for (let i = 1; i < path.points.length; i++) {
+                        ctx.lineTo(path.points[i].x, path.points[i].y);
+                    }
+                    ctx.stroke();
+                });
+            };
+
             useEffect(() => {
                 let frame;
                 const chars = "абвгдеёжзийклмнопрстуфхцчшщъыьэюя";
                 let lastNoiseUpdate = 0;
 
-                const render = (time) => {
+                const animate = (time) => {
                     setHue(h => (h + 1) % 360);
-                    if (time - lastNoiseUpdate > 70) {
+                    if (time - lastNoiseUpdate > 80) {
                         let res = "";
                         for(let i=0; i<6; i++) res += chars[Math.floor(Math.random()*chars.length)];
                         setCityNoise(res.toUpperCase());
                         lastNoiseUpdate = time;
                     }
-
-                    if (canvasRef.current) {
-                        const canvas = canvasRef.current;
-                        const ctx = canvas.getContext('2d');
-                        ctx.clearRect(0, 0, canvas.width, canvas.height);
-                        
-                        pathsRef.current.forEach(path => {
-                            if (path.points.length < 1) return;
-                            ctx.beginPath();
-                            ctx.lineWidth = 3;
-                            ctx.lineCap = 'round';
-                            ctx.lineJoin = 'round';
-                            ctx.strokeStyle = path.color === 'rainbow' ? `hsl(${hue}, 100%, 70%)` : path.color;
-                            
-                            ctx.moveTo(path.points[0].x, path.points[0].y);
-                            for (let i = 1; i < path.points.length; i++) {
-                                ctx.lineTo(path.points[i].x, path.points[i].y);
-                            }
-                            ctx.stroke();
-                        });
-                    }
-                    frame = requestAnimationFrame(render);
+                    renderScene();
+                    frame = requestAnimationFrame(animate);
                 };
-                frame = requestAnimationFrame(render);
+                frame = requestAnimationFrame(animate);
                 return () => cancelAnimationFrame(frame);
             }, [hue]);
 
@@ -157,7 +170,11 @@
                 const rect = canvas.getBoundingClientRect();
                 const clientX = e.clientX || (e.touches && e.touches[0].clientX);
                 const clientY = e.clientY || (e.touches && e.touches[0].clientY);
-                return { x: clientX - rect.left, y: clientY - rect.top };
+                // Координаты теперь всегда соответствуют CSS-размерам контейнера
+                return { 
+                    x: clientX - rect.left, 
+                    y: clientY - rect.top 
+                };
             };
 
             const startDrawing = (e) => {
@@ -170,7 +187,8 @@
             const moveDrawing = (e) => {
                 if (!drawing || currentPage !== 'draw') return;
                 const pos = getPos(e);
-                pathsRef.current[pathsRef.current.length - 1].points.push(pos);
+                const currentPath = pathsRef.current[pathsRef.current.length - 1];
+                if (currentPath) currentPath.points.push(pos);
             };
 
             const sendQuestion = async () => {
@@ -189,22 +207,21 @@
             };
 
             return (
-                <div className="min-h-screen w-full relative bg-[#080808] no-select">
+                <div className="min-h-screen w-full relative bg-[#050505] no-select overflow-hidden">
                     {/* Плавный снег */}
                     <div className="fixed inset-0 pointer-events-none z-0">
-                        {[...Array(currentPage === 'draw' ? 15 : 45)].map((_, i) => (
+                        {[...Array(currentPage === 'draw' ? 10 : 35)].map((_, i) => (
                             <div key={i} className="snow-particle" style={{
                                 left: `${Math.random()*100}%`, 
-                                width: `${Math.random()*2+1}px`, 
-                                height: `${Math.random()*2+1}px`,
-                                animationDuration: `${Math.random()*12+8}s`,
+                                width: `${Math.random()*2+0.5}px`, 
+                                height: `${Math.random()*2+0.5}px`,
+                                animationDuration: `${Math.random()*10+10}s`,
                                 animationDelay: `-${Math.random()*20}s`,
-                                opacity: Math.random()*0.3 + 0.1
                             }} />
                         ))}
                     </div>
 
-                    <button onClick={() => setMenuOpen(!menuOpen)} className="fixed top-6 right-6 z-50 p-4 bg-white/5 backdrop-blur-2xl border border-white/10 rounded-2xl hover:bg-white/10 transition-all active:scale-90">
+                    <button onClick={() => setMenuOpen(!menuOpen)} className="fixed top-6 right-6 z-50 p-4 bg-white/5 backdrop-blur-3xl border border-white/10 rounded-2xl hover:bg-white/10 transition-all active:scale-90">
                         <div className="w-6 h-5 flex flex-col justify-between items-end">
                             <span className={`h-0.5 bg-white transition-all ${menuOpen ? 'w-6 rotate-45 translate-y-2' : 'w-6'}`} />
                             <span className={`h-0.5 bg-white transition-all ${menuOpen ? 'opacity-0' : 'w-4'}`} />
@@ -212,13 +229,13 @@
                         </div>
                     </button>
 
-                    <div className={`fixed inset-0 z-40 bg-black/95 backdrop-blur-3xl transition-all duration-500 flex flex-col items-center justify-center gap-10 ${menuOpen ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-full pointer-events-none'}`}>
+                    <nav className={`fixed inset-0 z-40 bg-black/95 backdrop-blur-3xl transition-all duration-500 flex flex-col items-center justify-center gap-10 ${menuOpen ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-full pointer-events-none'}`}>
                         {['info', 'draw', 'ask'].map((p) => (
                             <button key={p} onClick={() => {setCurrentPage(p); setMenuOpen(false);}} className={`text-3xl font-bold uppercase tracking-widest transition-all ${currentPage === p ? 'text-cyan-400 scale-110' : 'text-white/30 hover:text-white'}`}>
                                 {p === 'info' ? 'Профиль' : p === 'draw' ? 'Холст' : 'Вопросы'}
                             </button>
                         ))}
-                    </div>
+                    </nav>
 
                     <main className="relative z-10 h-screen w-full flex items-center justify-center">
                         {currentPage === 'info' && (
@@ -250,18 +267,17 @@
                         )}
 
                         {currentPage === 'draw' && (
-                            <div className="absolute inset-0 overflow-hidden">
+                            <div id="canvas-container">
                                 <canvas ref={canvasRef} 
                                     onMouseDown={startDrawing} onMouseMove={moveDrawing} onMouseUp={() => setDrawing(false)}
                                     onMouseLeave={() => setDrawing(false)}
                                     onTouchStart={startDrawing} onTouchMove={moveDrawing} onTouchEnd={() => setDrawing(false)}
                                 />
-                                
-                                <div className="fixed bottom-10 left-1/2 -translate-x-1/2 flex items-center gap-4 bg-black/60 backdrop-blur-3xl p-3 px-6 rounded-full border border-white/5 shadow-2xl z-20">
-                                    <button onClick={() => setColorIdx((colorIdx + 1) % colors.length)} className="w-9 h-9 rounded-full border border-white/20 transition-transform active:scale-90" 
-                                        style={{background: colors[colorIdx] === 'rainbow' ? `hsl(${hue},100%,70%)` : colors[colorIdx]}} />
-                                    <div className="w-px h-6 bg-white/10" />
-                                    <button onClick={() => { pathsRef.current = []; }} className="text-white/40 px-4 py-2 text-[10px] font-bold uppercase tracking-widest hover:text-white transition-colors">Очистить</button>
+                                <div className="fixed bottom-10 left-1/2 -translate-x-1/2 flex items-center gap-4 bg-black/40 backdrop-blur-3xl p-3 px-6 rounded-full border border-white/5 shadow-2xl z-20">
+                                    <button onClick={() => setColorIdx((colorIdx + 1) % colors.length)} className="w-8 h-8 rounded-full border border-white/20 transition-transform active:scale-90" 
+                                        style={{background: colors[colorIdx] === 'rainbow' ? `hsl(${hue},100%,75%)` : colors[colorIdx]}} />
+                                    <div className="w-px h-5 bg-white/10" />
+                                    <button onClick={() => { pathsRef.current = []; }} className="text-white/30 px-3 py-1 text-[9px] font-bold uppercase tracking-widest hover:text-white transition-colors">Стереть</button>
                                 </div>
                             </div>
                         )}
@@ -271,15 +287,15 @@
                                 {!isAdminAuthenticated ? (
                                     <>
                                         <h2 className="text-2xl font-bold mb-6 tracking-tight">Анонимно</h2>
-                                        <textarea value={question} onChange={e => setQuestion(e.target.value)} placeholder="Напиши что-нибудь..." className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 min-h-[150px] focus:outline-none focus:border-white/20 transition-all resize-none mb-6 text-white text-sm" />
+                                        <textarea value={question} onChange={e => setQuestion(e.target.value)} placeholder="Ваше сообщение..." className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 min-h-[150px] focus:outline-none focus:border-white/20 transition-all resize-none mb-6 text-white text-sm" />
                                         <button onClick={sendQuestion} disabled={isSending || !question.trim()} className="w-full bg-white text-black font-bold py-4 rounded-2xl active:scale-95 disabled:opacity-20 uppercase tracking-widest text-xs">Отправить</button>
-                                        <button onClick={() => { const p = prompt('Password?'); if(p === 'Lie2Admin') setIsAdminAuthenticated(true); }} className="mt-8 text-[9px] text-white/5 uppercase tracking-widest hover:text-white/20 transition-colors">Админ-панель</button>
+                                        <button onClick={() => { const p = prompt('Admin?'); if(p === 'Lie2Admin') setIsAdminAuthenticated(true); }} className="mt-8 text-[9px] text-white/5 uppercase tracking-widest">Login</button>
                                     </>
                                 ) : (
                                     <div className="h-[450px] flex flex-col text-left">
                                         <div className="flex justify-between items-center mb-6">
-                                            <h2 className="font-bold text-lg">Входящие</h2>
-                                            <button onClick={() => setIsAdminAuthenticated(false)} className="text-[10px] text-cyan-500 font-bold uppercase">Выйти</button>
+                                            <h2 className="font-bold text-lg">Inbox</h2>
+                                            <button onClick={() => setIsAdminAuthenticated(false)} className="text-[10px] text-cyan-500 font-bold uppercase">Logout</button>
                                         </div>
                                         <div className="flex-1 overflow-y-auto space-y-4 custom-scroll pr-2">
                                             {questionsList.map(q => (
@@ -288,7 +304,7 @@
                                                     <p className="text-[9px] opacity-20 mt-3">{q.createdAt?.toDate().toLocaleString()}</p>
                                                 </div>
                                             ))}
-                                            {questionsList.length === 0 && <p className="text-center opacity-10 mt-20 text-xs">Пусто</p>}
+                                            {questionsList.length === 0 && <p className="text-center opacity-10 mt-20 text-xs">No questions</p>}
                                         </div>
                                     </div>
                                 )}
