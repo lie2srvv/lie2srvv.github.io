@@ -37,7 +37,7 @@
   #colorWheel{display:block;border-radius:50%;background:transparent}
   #wheelClose{margin-top:8px;padding:6px 8px;border-radius:8px;border:none;background:#222;color:var(--text);cursor:pointer}
   /* burger снизу по центру */
-  #burger{position:fixed;left:50%;transform:translateX(-50%);bottom:14px;z-index:30;width:56px;height:56px;border-radius:999px;background:#1a1a1a;border:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;cursor:pointer}
+  #burger{position:fixed;left:50%;transform:translateX(-50%);bottom:14px;z-index:30;width:56px;height:56px;border-radius:999px;background:#1a1a1a;border:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:0.7}
   #burger:active{transform:translateX(-50%) scale(.98)}
   /* подсказка */
   .hint{font-size:12px;color:var(--muted);text-align:center;margin-top:8px}
@@ -72,6 +72,7 @@
     </div>
 
     <button id="openPalette" class="paletteBtn" title="Открыть круговую палитру">Палитра</button>
+    <label class="paletteBtn" for="snowToggle"><input id="snowToggle" type="checkbox" style="margin-right:8px" checked>Снег</label>
     <button id="openBg" class="paletteBtn" title="Настройки фона">Фон</button>
     <button id="clear" class="clear">Очистить</button>
   </div>
@@ -91,28 +92,35 @@
   const c = document.getElementById('snow');
   const ctx = c.getContext('2d');
   let W = innerWidth, H = innerHeight;
-  function resize(){ W = c.width = innerWidth; H = c.height = innerHeight; }
+  let snowEnabled = true;
+  let parts = [];
+  function resize(){ W = c.width = innerWidth; H = c.height = innerHeight; initParts(); }
+  function initParts(){
+    parts = [];
+    for(let i=0;i<60;i++){
+      parts.push({ x: Math.random()*W, y: Math.random()*-H, r: Math.random()*2+1, vy: Math.random()*0.6+0.3, off: Math.random()*2000 });
+    }
+  }
   window.addEventListener('resize', resize);
   resize();
-  const parts = [];
-  for(let i=0;i<60;i++){
-    parts.push({ x: Math.random()*W, y: Math.random()*-H, r: Math.random()*2+1, vy: Math.random()*0.6+0.3, off: Math.random()*2000 });
-  }
   function loop(){
     ctx.clearRect(0,0,W,H);
-    for(const p of parts){
-      p.y += p.vy;
-      p.x += Math.sin((Date.now()+p.off)*0.0015) * 0.4;
-      if(p.y > H) { p.y = -10; p.x = Math.random()*W; }
-      const g = ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.r);
-      g.addColorStop(0, 'rgba(255,255,255,0.9)');
-      g.addColorStop(1, 'transparent');
-      ctx.fillStyle = g;
-      ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill();
+    if(snowEnabled){
+      for(const p of parts){
+        p.y += p.vy;
+        p.x += Math.sin((Date.now()+p.off)*0.0015) * 0.4;
+        if(p.y > H) { p.y = -10; p.x = Math.random()*W; }
+        const g = ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.r);
+        g.addColorStop(0, 'rgba(255,255,255,0.9)');
+        g.addColorStop(1, 'transparent');
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill();
+      }
     }
     requestAnimationFrame(loop);
   }
   loop();
+  window.setSnowEnabled = function(v){ snowEnabled = !!v; if(!snowEnabled) ctx.clearRect(0,0,W,H); };
 })();
 
 /* ============ Drawing app ============ */
@@ -445,6 +453,15 @@
       setBackground(currentColor);
     };
   });
+
+  // snow toggle hookup
+  const snowToggle = document.getElementById('snowToggle');
+  if(snowToggle){
+    snowToggle.addEventListener('change', ()=>{
+      if(window.setSnowEnabled) window.setSnowEnabled(snowToggle.checked);
+    });
+    if(window.setSnowEnabled) window.setSnowEnabled(snowToggle.checked);
+  }
 
   window.__canvasApp = { paths, clear: ()=>{ paths.length=0; redraw(); } };
 
